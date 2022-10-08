@@ -1,15 +1,53 @@
 package main
 
 import (
+	"bufio"
+	"fmt"
+	"io"
 	"os"
 )
 
 func main() {
-	bytes, err := os.ReadFile("/test")
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		do(scanner.Text())
+	}
+}
+
+func do(id string) {
+	reader, err := os.OpenFile(
+		fmt.Sprintf("out/%v", id),
+		os.O_RDONLY,
+		0,
+	)
 	if err != nil {
-		os.Exit(1)
+		fmt.Printf("error opening reader: %v\n", err)
+		return
+	}
+	defer reader.Close()
+
+	writer, err := os.OpenFile(
+		fmt.Sprintf("in/%v", id),
+		os.O_WRONLY,
+		0444,
+	)
+	if err != nil {
+		fmt.Printf("error opening writer: %v\n", err)
+		return
+	}
+	defer writer.Close()
+
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		fmt.Printf("error reading: %v\n", err)
+		return
 	}
 
-	// Use write to avoid needing to worry about Windows newlines.
-	os.Stdout.Write(bytes)
+	_, err = writer.Write(data)
+	if err != nil {
+		fmt.Printf("error writing: %v\n", err)
+		return
+	}
+
+	fmt.Fprintf(os.Stdout, "processed: %v\n", id)
 }

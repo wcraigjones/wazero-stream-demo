@@ -5,11 +5,13 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"io/fs"
+	"io"
 	"log"
+	"math/rand"
 	"os"
+	"sync"
+	"time"
 
-	"github.com/psanford/memfs"
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
 	"github.com/tetratelabs/wazero/sys"
@@ -19,23 +21,24 @@ import (
 var plugin []byte
 
 func main() {
-	// Choose the context to use for function calls.
 	ctx := context.Background()
 
-	// Create a new WebAssembly Runtime.
 	r := wazero.NewRuntime(ctx)
-	defer r.Close(ctx) // This closes everything this Runtime created.
+	defer r.Close(ctx)
 
-	rootFS := memfs.New()
-	err := rootFS.WriteFile("test", bytes.NewBufferString("hello world\n").Bytes(), fs.FileMode(os.O_RDONLY))
-	if err != nil {
-		panic(err)
+	pluginFS := &PluginFS{
+		inFiles:  make(map[string]*PluginFile),
+		outFiles: make(map[string]*PluginFile),
 	}
 
-	// Combine the above into our baseline config, overriding defaults.
-	config := wazero.NewModuleConfig().
-		// By default, I/O streams are discarded and there's no file system.
-		WithStdout(os.Stdout).WithStderr(os.Stderr).WithFS(rootFS)
+	pluginStdinReader, pluginStdinWriter := io.Pipe()
+
+	config := wazero.
+		NewModuleConfig().
+		WithStdout(os.Stdout).
+		WithStderr(os.Stderr).
+		WithStdin(pluginStdinReader).
+		WithFS(pluginFS)
 
 	// Instantiate WASI, which implements system I/O such as console output.
 	wasi_snapshot_preview1.MustInstantiate(ctx, r)
@@ -46,16 +49,72 @@ func main() {
 		log.Panicln(err)
 	}
 
-	// InstantiateModule runs the "_start" function, WASI's "main".
-	// * Set the program name (arg[0]) to "wasi"; arg[1] should be "/test.txt".
-	if _, err = r.InstantiateModule(ctx, code, config.WithArgs("wasi")); err != nil {
+	wasmWG := sync.WaitGroup{}
+	wasmWG.Add(1)
 
-		// Note: Most compilers do not exit the module after running "_start",
-		// unless there was an error. This allows you to call exported functions.
-		if exitErr, ok := err.(*sys.ExitError); ok && exitErr.ExitCode() != 0 {
-			fmt.Fprintf(os.Stderr, "exit_code: %d\n", exitErr.ExitCode())
-		} else if !ok {
-			log.Panicln(err)
+	go func() {
+		defer wasmWG.Done()
+		_, err = r.InstantiateModule(ctx, code, config)
+		if err != nil {
+			if exitErr, ok := err.(*sys.ExitError); ok && exitErr.ExitCode() != 0 {
+				fmt.Fprintf(os.Stderr, "exit_code: %d\n", exitErr.ExitCode())
+			} else if !ok {
+				log.Panicln(err)
+			}
 		}
+	}()
+
+	testWG := sync.WaitGroup{}
+	ids := map[string]*io.PipeReader{}
+	seed := map[string][]byte{}
+
+	for i := 0; i < 100000; i++ {
+		randBytes := make([]byte, 4096)
+		rand.Read(randBytes)
+		fIn := bytes.NewBuffer(randBytes)
+		id := fmt.Sprint(rand.Int63())
+
+		fHost, fPlugin := io.Pipe()
+		pluginFS.Register(
+			id,
+			&PluginFile{
+				name:   "in",
+				mode:   true,
+				writer: fPlugin,
+			},
+			&PluginFile{
+				name:   "out",
+				mode:   false,
+				reader: fIn,
+			},
+		)
+
+		ids[id] = fHost
+		seed[id] = randBytes
 	}
+
+	fmt.Println("Prepared.")
+	start := time.Now()
+	for id, fHost := range ids {
+		randBytes := seed[id]
+		testWG.Add(1)
+		go func() {
+			defer testWG.Done()
+			data, err := io.ReadAll(fHost)
+			if err != nil {
+				panic(err)
+			}
+			if !bytes.Equal(randBytes, data) {
+				fmt.Println("Error data mismatch!")
+			}
+		}()
+
+		pluginStdinWriter.Write([]byte(id + "\n"))
+	}
+
+	testWG.Wait()
+	fmt.Println("Processed:", time.Since(start))
+
+	pluginStdinWriter.Close()
+	wasmWG.Wait()
 }
