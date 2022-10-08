@@ -48,6 +48,4 @@ func do(id string) {
 		fmt.Printf("error writing: %v\n", err)
 		return
 	}
-
-	fmt.Fprintf(os.Stdout, "processed: %v\n", id)
 }
