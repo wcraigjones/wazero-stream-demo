@@ -61,18 +61,19 @@ func main() {
 	seed := map[string][]byte{}
 	qID := 0
 
-	queues := make([][]string, 10)
-	for i := 0; i < 10; i++ {
+	workers := 1
+	queues := make([][]string, workers)
+	for i := 0; i < workers; i++ {
 		queues[i] = make([]string, 0)
 	}
 
-	for i := 0; i < 100000; i++ {
+	for i := 0; i < 1000; i++ {
 		randBytes := make([]byte, 4096)
 		rand.Read(randBytes)
 		fIn := bytes.NewBuffer(randBytes)
 		id := fmt.Sprint(rand.Int63())
 
-		queues[qID%10] = append(queues[qID%10], id)
+		queues[qID%workers] = append(queues[qID%workers], id)
 		qID += 1
 
 		fHost, fPlugin := io.Pipe()
@@ -100,7 +101,7 @@ func main() {
 	free := mod.ExportedFunction("free")
 
 	execWG := sync.WaitGroup{}
-	for i := 0; i < 10; i++ {
+	for i := 0; i < workers; i++ {
 		execWG.Add(1)
 		go func(id int) {
 			for _, streamID := range queues[id] {
