@@ -1,17 +1,19 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 	"os"
+	"reflect"
+	"unsafe"
 )
 
-func main() {
-	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
-		do(scanner.Text())
-	}
+func main() {}
+
+//export do
+func _do(ptr, size uint32) {
+	name := ptrToString(ptr, size)
+	do(name)
 }
 
 func do(id string) {
@@ -48,4 +50,16 @@ func do(id string) {
 		fmt.Printf("error writing: %v\n", err)
 		return
 	}
+}
+
+// ptrToString returns a string from WebAssembly compatible numeric types
+// representing its pointer and length.
+func ptrToString(ptr uint32, size uint32) string {
+	// Get a slice view of the underlying bytes in the stream. We use SliceHeader, not StringHeader
+	// as it allows us to fix the capacity to what was allocated.
+	return *(*string)(unsafe.Pointer(&reflect.SliceHeader{
+		Data: uintptr(ptr),
+		Len:  uintptr(size), // Tinygo requires these as uintptrs even if they are int fields.
+		Cap:  uintptr(size), // ^^ See https://github.com/tinygo-org/tinygo/issues/1284
+	}))
 }

@@ -1,0 +1,1157 @@
+Prepared.
+unexpected fault address 0x914ab00000000010
+fatal error: fault
+[signal SIGSEGV: segmentation violation code=0x2 addr=0x914ab00000000010 pc=0x102736bc0]
+
+goroutine 9 [running]:
+runtime.throw({0x102764ce5?, 0x1?})
+	/usr/local/go/src/runtime/panic.go:1047 +0x40 fp=0x1400006c9e0 sp=0x1400006c9b0 pc=0x1026767c0
+runtime.sigpanic()
+	/usr/local/go/src/runtime/signal_unix.go:842 +0x1a0 fp=0x1400006ca10 sp=0x1400006c9e0 pc=0x10268c970
+github.com/tetratelabs/wazero/internal/engine/compiler.(*callEngine).deferredOnCall(0x1401d850000, {0x1027c3220, 0x1028da970})
+	/Users/craig.jones/projects/wazero/vendor/github.com/tetratelabs/wazero/internal/engine/compiler/engine.go:664 +0xc0 fp=0x1400006cae0 sp=0x1400006ca20 pc=0x102736bc0
+github.com/tetratelabs/wazero/internal/engine/compiler.(*callEngine).Call.func1()
+	/Users/craig.jones/projects/wazero/vendor/github.com/tetratelabs/wazero/internal/engine/compiler/engine.go:587 +0x4c fp=0x1400006cb40 sp=0x1400006cae0 pc=0x1027369ec
+runtime.deferCallSave(0x1400006cc20, 0x1400006cdd0?)
+	/usr/local/go/src/runtime/panic.go:796 +0x88 fp=0x1400006cb50 sp=0x1400006cb40 pc=0x102676018
+runtime.runOpenDeferFrame(0x129d72c00?, 0x140009120f0)
+	/usr/local/go/src/runtime/panic.go:769 +0x1b4 fp=0x1400006cba0 sp=0x1400006cb50 pc=0x102675e44
+panic({0x1027c3220, 0x1028da970})
+	/usr/local/go/src/runtime/panic.go:884 +0x204 fp=0x1400006cc60 sp=0x1400006cba0 pc=0x102676274
+runtime.panicmem()
+	/usr/local/go/src/runtime/panic.go:260 +0x48 fp=0x1400006cc80 sp=0x1400006cc60 pc=0x102674c38
+runtime.sigpanic()
+	/usr/local/go/src/runtime/signal_unix.go:835 +0x1b8 fp=0x1400006ccb0 sp=0x1400006cc80 pc=0x10268c988
+github.com/tetratelabs/wazero/internal/engine/compiler.(*callEngine).execWasmFunction(0x1401d850000, {0x1027e8910, 0x1400011e000}, 0x14000207000)
+	/Users/craig.jones/projects/wazero/vendor/github.com/tetratelabs/wazero/internal/engine/compiler/engine.go:781 +0x5c fp=0x1400006cd60 sp=0x1400006ccc0 pc=0x10273705c
+github.com/tetratelabs/wazero/internal/engine/compiler.(*callEngine).Call(0x1401d850000, {0x1027e8910?, 0x1400011e000?}, 0x10276403c?, {0x1401304a010?, 0x1027b4940?, 0x1?})
+	/Users/craig.jones/projects/wazero/vendor/github.com/tetratelabs/wazero/internal/engine/compiler/engine.go:596 +0x1d0 fp=0x1400006ce20 sp=0x1400006cd60 pc=0x1027368c0
+github.com/tetratelabs/wazero/internal/wasm.(*function).Call(0x14000c56000?, {0x1027e8910?, 0x1400011e000?}, {0x1401304a010?, 0x14000c58000?, 0x0?})
+	/Users/craig.jones/projects/wazero/vendor/github.com/tetratelabs/wazero/internal/wasm/call_context.go:171 +0x50 fp=0x1400006ce70 sp=0x1400006ce20 pc=0x1026ee000
+main.main.func1(0x0?)
+	/Users/craig.jones/projects/wazero/main.go:129 +0x354 fp=0x1400006cfb0 sp=0x1400006ce70 pc=0x102764074
+main.main.func4()
+	/Users/craig.jones/projects/wazero/main.go:136 +0x30 fp=0x1400006cfd0 sp=0x1400006cfb0 pc=0x102763ce0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1400006cfd0 sp=0x1400006cfd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:105 +0x964
+
+goroutine 1 [runnable]:
+sync.(*WaitGroup).Add(0x1400090c6d0?, 0x1?)
+	/usr/local/go/src/sync/waitgroup.go:62 +0x11c fp=0x14000163970 sp=0x14000163970 pc=0x1026a9a6c
+main.main()
+	/Users/craig.jones/projects/wazero/main.go:143 +0xc44 fp=0x14000163f70 sp=0x14000163970 pc=0x1027638b4
+runtime.main()
+	/usr/local/go/src/runtime/proc.go:250 +0x24c fp=0x14000163fd0 sp=0x14000163f70 pc=0x102678d3c
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x14000163fd0 sp=0x14000163fd0 pc=0x1026a3c04
+
+goroutine 2 [force gc (idle)]:
+runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+	/usr/local/go/src/runtime/proc.go:363 +0xe4 fp=0x1400004efa0 sp=0x1400004ef80 pc=0x102679104
+runtime.goparkunlock(...)
+	/usr/local/go/src/runtime/proc.go:369
+runtime.forcegchelper()
+	/usr/local/go/src/runtime/proc.go:302 +0xac fp=0x1400004efd0 sp=0x1400004efa0 pc=0x102678f9c
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1400004efd0 sp=0x1400004efd0 pc=0x1026a3c04
+created by runtime.init.6
+	/usr/local/go/src/runtime/proc.go:290 +0x24
+
+goroutine 3 [GC sweep wait]:
+runtime.gopark(0x1?, 0x0?, 0x0?, 0x0?, 0x0?)
+	/usr/local/go/src/runtime/proc.go:363 +0xe4 fp=0x1400004f770 sp=0x1400004f750 pc=0x102679104
+runtime.goparkunlock(...)
+	/usr/local/go/src/runtime/proc.go:369
+runtime.bgsweep(0x0?)
+	/usr/local/go/src/runtime/mgcsweep.go:297 +0x10c fp=0x1400004f7b0 sp=0x1400004f770 pc=0x102666b3c
+runtime.gcenable.func1()
+	/usr/local/go/src/runtime/mgc.go:178 +0x28 fp=0x1400004f7d0 sp=0x1400004f7b0 pc=0x10265b098
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1400004f7d0 sp=0x1400004f7d0 pc=0x1026a3c04
+created by runtime.gcenable
+	/usr/local/go/src/runtime/mgc.go:178 +0x74
+
+goroutine 4 [GC scavenge wait]:
+runtime.gopark(0x2d0d0a?, 0x6553f100?, 0x0?, 0x0?, 0x0?)
+	/usr/local/go/src/runtime/proc.go:363 +0xe4 fp=0x1400004ff50 sp=0x1400004ff30 pc=0x102679104
+runtime.goparkunlock(...)
+	/usr/local/go/src/runtime/proc.go:369
+runtime.(*scavengerState).park(0x1028e5220)
+	/usr/local/go/src/runtime/mgcscavenge.go:389 +0x5c fp=0x1400004ff80 sp=0x1400004ff50 pc=0x102664a8c
+runtime.bgscavenge(0x0?)
+	/usr/local/go/src/runtime/mgcscavenge.go:622 +0xac fp=0x1400004ffb0 sp=0x1400004ff80 pc=0x10266509c
+runtime.gcenable.func2()
+	/usr/local/go/src/runtime/mgc.go:179 +0x28 fp=0x1400004ffd0 sp=0x1400004ffb0 pc=0x10265b038
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1400004ffd0 sp=0x1400004ffd0 pc=0x1026a3c04
+created by runtime.gcenable
+	/usr/local/go/src/runtime/mgc.go:179 +0xb8
+
+goroutine 17 [finalizer wait]:
+runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+	/usr/local/go/src/runtime/proc.go:363 +0xe4 fp=0x1400004a580 sp=0x1400004a560 pc=0x102679104
+runtime.goparkunlock(...)
+	/usr/local/go/src/runtime/proc.go:369
+runtime.runfinq()
+	/usr/local/go/src/runtime/mfinal.go:180 +0x120 fp=0x1400004a7d0 sp=0x1400004a580 pc=0x10265a2c0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1400004a7d0 sp=0x1400004a7d0 pc=0x1026a3c04
+created by runtime.createfing
+	/usr/local/go/src/runtime/mfinal.go:157 +0x84
+
+goroutine 18 [GC worker (idle)]:
+runtime.gopark(0x102914580?, 0x1?, 0x73?, 0x5e?, 0x0?)
+	/usr/local/go/src/runtime/proc.go:363 +0xe4 fp=0x1400004af40 sp=0x1400004af20 pc=0x102679104
+runtime.gcBgMarkWorker()
+	/usr/local/go/src/runtime/mgc.go:1235 +0xec fp=0x1400004afd0 sp=0x1400004af40 pc=0x10265d47c
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1400004afd0 sp=0x1400004afd0 pc=0x1026a3c04
+created by runtime.gcBgMarkStartWorkers
+	/usr/local/go/src/runtime/mgc.go:1159 +0x28
+
+goroutine 33 [GC worker (idle)]:
+runtime.gopark(0x557db03b82a1?, 0x3?, 0x82?, 0x93?, 0x0?)
+	/usr/local/go/src/runtime/proc.go:363 +0xe4 fp=0x14000092740 sp=0x14000092720 pc=0x102679104
+runtime.gcBgMarkWorker()
+	/usr/local/go/src/runtime/mgc.go:1235 +0xec fp=0x140000927d0 sp=0x14000092740 pc=0x10265d47c
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x140000927d0 sp=0x140000927d0 pc=0x1026a3c04
+created by runtime.gcBgMarkStartWorkers
+	/usr/local/go/src/runtime/mgc.go:1159 +0x28
+
+goroutine 49 [GC worker (idle)]:
+runtime.gopark(0x557db03b7860?, 0x1?, 0xbd?, 0xd?, 0x0?)
+	/usr/local/go/src/runtime/proc.go:363 +0xe4 fp=0x1400006df40 sp=0x1400006df20 pc=0x102679104
+runtime.gcBgMarkWorker()
+	/usr/local/go/src/runtime/mgc.go:1235 +0xec fp=0x1400006dfd0 sp=0x1400006df40 pc=0x10265d47c
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1400006dfd0 sp=0x1400006dfd0 pc=0x1026a3c04
+created by runtime.gcBgMarkStartWorkers
+	/usr/local/go/src/runtime/mgc.go:1159 +0x28
+
+goroutine 34 [GC worker (idle)]:
+runtime.gopark(0x557db03b8a9b?, 0x1?, 0x4e?, 0xc0?, 0x0?)
+	/usr/local/go/src/runtime/proc.go:363 +0xe4 fp=0x14000092f40 sp=0x14000092f20 pc=0x102679104
+runtime.gcBgMarkWorker()
+	/usr/local/go/src/runtime/mgc.go:1235 +0xec fp=0x14000092fd0 sp=0x14000092f40 pc=0x10265d47c
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x14000092fd0 sp=0x14000092fd0 pc=0x1026a3c04
+created by runtime.gcBgMarkStartWorkers
+	/usr/local/go/src/runtime/mgc.go:1159 +0x28
+
+goroutine 50 [GC worker (idle)]:
+runtime.gopark(0x557db05075c0?, 0x3?, 0xdb?, 0xbb?, 0x0?)
+	/usr/local/go/src/runtime/proc.go:363 +0xe4 fp=0x14000066f40 sp=0x14000066f20 pc=0x102679104
+runtime.gcBgMarkWorker()
+	/usr/local/go/src/runtime/mgc.go:1235 +0xec fp=0x14000066fd0 sp=0x14000066f40 pc=0x10265d47c
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x14000066fd0 sp=0x14000066fd0 pc=0x1026a3c04
+created by runtime.gcBgMarkStartWorkers
+	/usr/local/go/src/runtime/mgc.go:1159 +0x28
+
+goroutine 19 [GC worker (idle)]:
+runtime.gopark(0x557db03b558c?, 0x3?, 0xb3?, 0x2c?, 0x0?)
+	/usr/local/go/src/runtime/proc.go:363 +0xe4 fp=0x1400004b740 sp=0x1400004b720 pc=0x102679104
+runtime.gcBgMarkWorker()
+	/usr/local/go/src/runtime/mgc.go:1235 +0xec fp=0x1400004b7d0 sp=0x1400004b740 pc=0x10265d47c
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1400004b7d0 sp=0x1400004b7d0 pc=0x1026a3c04
+created by runtime.gcBgMarkStartWorkers
+	/usr/local/go/src/runtime/mgc.go:1159 +0x28
+
+goroutine 35 [GC worker (idle)]:
+runtime.gopark(0x557db03b55b5?, 0x1?, 0x25?, 0xdb?, 0x0?)
+	/usr/local/go/src/runtime/proc.go:363 +0xe4 fp=0x1400055cf40 sp=0x1400055cf20 pc=0x102679104
+runtime.gcBgMarkWorker()
+	/usr/local/go/src/runtime/mgc.go:1235 +0xec fp=0x1400055cfd0 sp=0x1400055cf40 pc=0x10265d47c
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1400055cfd0 sp=0x1400055cfd0 pc=0x1026a3c04
+created by runtime.gcBgMarkStartWorkers
+	/usr/local/go/src/runtime/mgc.go:1159 +0x28
+
+goroutine 51 [GC worker (idle)]:
+runtime.gopark(0x557db03b33b1?, 0x3?, 0xd?, 0x2c?, 0x0?)
+	/usr/local/go/src/runtime/proc.go:363 +0xe4 fp=0x1400006af40 sp=0x1400006af20 pc=0x102679104
+runtime.gcBgMarkWorker()
+	/usr/local/go/src/runtime/mgc.go:1235 +0xec fp=0x1400006afd0 sp=0x1400006af40 pc=0x10265d47c
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1400006afd0 sp=0x1400006afd0 pc=0x1026a3c04
+created by runtime.gcBgMarkStartWorkers
+	/usr/local/go/src/runtime/mgc.go:1159 +0x28
+
+goroutine 20 [GC worker (idle)]:
+runtime.gopark(0x557db050c503?, 0x3?, 0x73?, 0x5c?, 0x0?)
+	/usr/local/go/src/runtime/proc.go:363 +0xe4 fp=0x1400004bf40 sp=0x1400004bf20 pc=0x102679104
+runtime.gcBgMarkWorker()
+	/usr/local/go/src/runtime/mgc.go:1235 +0xec fp=0x1400004bfd0 sp=0x1400004bf40 pc=0x10265d47c
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1400004bfd0 sp=0x1400004bfd0 pc=0x1026a3c04
+created by runtime.gcBgMarkStartWorkers
+	/usr/local/go/src/runtime/mgc.go:1159 +0x28
+
+goroutine 36 [GC worker (idle)]:
+runtime.gopark(0x557d9b5d2b78?, 0x3?, 0x2?, 0x53?, 0x0?)
+	/usr/local/go/src/runtime/proc.go:363 +0xe4 fp=0x14000093f40 sp=0x14000093f20 pc=0x102679104
+runtime.gcBgMarkWorker()
+	/usr/local/go/src/runtime/mgc.go:1235 +0xec fp=0x14000093fd0 sp=0x14000093f40 pc=0x10265d47c
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x14000093fd0 sp=0x14000093fd0 pc=0x1026a3c04
+created by runtime.gcBgMarkStartWorkers
+	/usr/local/go/src/runtime/mgc.go:1159 +0x28
+
+goroutine 5 [runnable]:
+main.main.func4()
+	/Users/craig.jones/projects/wazero/main.go:105 fp=0x1400008ffd0 sp=0x1400008ffd0 pc=0x102763cb0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1400008ffd0 sp=0x1400008ffd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:105 +0x964
+
+goroutine 6 [runnable]:
+runtime.sigpanic()
+	/usr/local/go/src/runtime/signal_unix.go:816 +0x24c fp=0x14000558a10 sp=0x14000558a10 pc=0x10268ca1c
+github.com/tetratelabs/wazero/internal/engine/compiler.(*callEngine).deferredOnCall(0x1401d850000, {0x1027c3220, 0x1028da970})
+	/Users/craig.jones/projects/wazero/vendor/github.com/tetratelabs/wazero/internal/engine/compiler/engine.go:664 +0xc0 fp=0x14000558ae0 sp=0x14000558a20 pc=0x102736bc0
+github.com/tetratelabs/wazero/internal/engine/compiler.(*callEngine).Call.func1()
+	/Users/craig.jones/projects/wazero/vendor/github.com/tetratelabs/wazero/internal/engine/compiler/engine.go:587 +0x4c fp=0x14000558b40 sp=0x14000558ae0 pc=0x1027369ec
+runtime.deferCallSave(0x14000558c20, 0x14000558dd0?)
+	/usr/local/go/src/runtime/panic.go:796 +0x88 fp=0x14000558b50 sp=0x14000558b40 pc=0x102676018
+runtime.runOpenDeferFrame(0x12afaff00?, 0x1400010ca50)
+	/usr/local/go/src/runtime/panic.go:769 +0x1b4 fp=0x14000558ba0 sp=0x14000558b50 pc=0x102675e44
+panic({0x1027c3220, 0x1028da970})
+	/usr/local/go/src/runtime/panic.go:884 +0x204 fp=0x14000558c60 sp=0x14000558ba0 pc=0x102676274
+runtime.panicmem()
+	/usr/local/go/src/runtime/panic.go:260 +0x48 fp=0x14000558c80 sp=0x14000558c60 pc=0x102674c38
+runtime.sigpanic()
+	/usr/local/go/src/runtime/signal_unix.go:835 +0x1b8 fp=0x14000558cb0 sp=0x14000558c80 pc=0x10268c988
+github.com/tetratelabs/wazero/internal/engine/compiler.(*callEngine).execWasmFunction(0x1401d850000, {0x1027e8910, 0x1400011e000}, 0x14000207000)
+	/Users/craig.jones/projects/wazero/vendor/github.com/tetratelabs/wazero/internal/engine/compiler/engine.go:781 +0x5c fp=0x14000558d60 sp=0x14000558cc0 pc=0x10273705c
+github.com/tetratelabs/wazero/internal/engine/compiler.(*callEngine).Call(0x1401d850000, {0x1027e8910?, 0x1400011e000?}, 0x10276403c?, {0x14013e10010?, 0x1027b4940?, 0x1?})
+	/Users/craig.jones/projects/wazero/vendor/github.com/tetratelabs/wazero/internal/engine/compiler/engine.go:596 +0x1d0 fp=0x14000558e20 sp=0x14000558d60 pc=0x1027368c0
+github.com/tetratelabs/wazero/internal/wasm.(*function).Call(0x1400c37c000?, {0x1027e8910?, 0x1400011e000?}, {0x14013e10010?, 0x1400c37e000?, 0x0?})
+	/Users/craig.jones/projects/wazero/vendor/github.com/tetratelabs/wazero/internal/wasm/call_context.go:171 +0x50 fp=0x14000558e70 sp=0x14000558e20 pc=0x1026ee000
+main.main.func1(0x0?)
+	/Users/craig.jones/projects/wazero/main.go:129 +0x354 fp=0x14000558fb0 sp=0x14000558e70 pc=0x102764074
+main.main.func4()
+	/Users/craig.jones/projects/wazero/main.go:136 +0x30 fp=0x14000558fd0 sp=0x14000558fb0 pc=0x102763ce0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x14000558fd0 sp=0x14000558fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:105 +0x964
+
+goroutine 7 [runnable]:
+runtime.gcTrigger.test({0x0?, 0x0?, 0x0?})
+	/usr/local/go/src/runtime/mgc.go:548 +0x140 fp=0x14000090dd0 sp=0x14000090dd0 pc=0x10265b540
+runtime.mallocgc(0x30, 0x1027d6840, 0x1)
+	/usr/local/go/src/runtime/malloc.go:1137 +0x87c fp=0x14000090e40 sp=0x14000090dd0 pc=0x10264f7dc
+runtime.newobject(0x0?)
+	/usr/local/go/src/runtime/malloc.go:1192 +0x2c fp=0x14000090e70 sp=0x14000090e40 pc=0x10264f98c
+main.main.func1(0x0?)
+	/Users/craig.jones/projects/wazero/main.go:120 +0x188 fp=0x14000090fb0 sp=0x14000090e70 pc=0x102763ea8
+main.main.func4()
+	/Users/craig.jones/projects/wazero/main.go:136 +0x30 fp=0x14000090fd0 sp=0x14000090fb0 pc=0x102763ce0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x14000090fd0 sp=0x14000090fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:105 +0x964
+
+goroutine 8 [runnable]:
+main.main.func4()
+	/Users/craig.jones/projects/wazero/main.go:105 fp=0x140000917d0 sp=0x140000917d0 pc=0x102763cb0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x140000917d0 sp=0x140000917d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:105 +0x964
+
+goroutine 10 [runnable]:
+main.main.func4()
+	/Users/craig.jones/projects/wazero/main.go:105 fp=0x1400008efd0 sp=0x1400008efd0 pc=0x102763cb0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1400008efd0 sp=0x1400008efd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:105 +0x964
+
+goroutine 11 [runnable]:
+runtime.sigpanic()
+	/usr/local/go/src/runtime/signal_unix.go:816 +0x24c fp=0x14000165a70 sp=0x14000165a70 pc=0x10268ca1c
+github.com/tetratelabs/wazero/internal/engine/compiler.(*callEngine).deferredOnCall(0x1401d850000, {0x1027bc880, 0x140001102e0})
+	/Users/craig.jones/projects/wazero/vendor/github.com/tetratelabs/wazero/internal/engine/compiler/engine.go:664 +0xc0 fp=0x14000165b40 sp=0x14000165a80 pc=0x102736bc0
+github.com/tetratelabs/wazero/internal/engine/compiler.(*callEngine).Call.func1()
+	/Users/craig.jones/projects/wazero/vendor/github.com/tetratelabs/wazero/internal/engine/compiler/engine.go:587 +0x4c fp=0x14000165ba0 sp=0x14000165b40 pc=0x1027369ec
+runtime.deferCallSave(0x14000165c80, 0x14000165dd0?)
+	/usr/local/go/src/runtime/panic.go:796 +0x88 fp=0x14000165bb0 sp=0x14000165ba0 pc=0x102676018
+runtime.runOpenDeferFrame(0x0?, 0x1400002c0a0)
+	/usr/local/go/src/runtime/panic.go:769 +0x1b4 fp=0x14000165c00 sp=0x14000165bb0 pc=0x102675e44
+panic({0x1027bc880, 0x140001102e0})
+	/usr/local/go/src/runtime/panic.go:884 +0x204 fp=0x14000165cc0 sp=0x14000165c00 pc=0x102676274
+github.com/tetratelabs/wazero/internal/engine/compiler.nativeCallStatusCode.causePanic(...)
+	/Users/craig.jones/projects/wazero/vendor/github.com/tetratelabs/wazero/internal/engine/compiler/engine.go:384
+github.com/tetratelabs/wazero/internal/engine/compiler.(*callEngine).execWasmFunction(0x1401d850000, {0x1027e8910, 0x1400011e000}, 0x14000207000)
+	/Users/craig.jones/projects/wazero/vendor/github.com/tetratelabs/wazero/internal/engine/compiler/engine.go:815 +0x43c fp=0x14000165d60 sp=0x14000165cc0 pc=0x10273743c
+github.com/tetratelabs/wazero/internal/engine/compiler.(*callEngine).Call(0x1401d850000, {0x1027e8910?, 0x1400011e000?}, 0x10276403c?, {0x140134e2010?, 0x1027b4940?, 0x1?})
+	/Users/craig.jones/projects/wazero/vendor/github.com/tetratelabs/wazero/internal/engine/compiler/engine.go:596 +0x1d0 fp=0x14000165e20 sp=0x14000165d60 pc=0x1027368c0
+github.com/tetratelabs/wazero/internal/wasm.(*function).Call(0x1400c2f8000?, {0x1027e8910?, 0x1400011e000?}, {0x140134e2010?, 0x1400c2fa000?, 0x1400008f6f8?})
+	/Users/craig.jones/projects/wazero/vendor/github.com/tetratelabs/wazero/internal/wasm/call_context.go:171 +0x50 fp=0x14000165e70 sp=0x14000165e20 pc=0x1026ee000
+main.main.func1(0x14000502340?)
+	/Users/craig.jones/projects/wazero/main.go:129 +0x354 fp=0x14000165fb0 sp=0x14000165e70 pc=0x102764074
+main.main.func4()
+	/Users/craig.jones/projects/wazero/main.go:136 +0x30 fp=0x14000165fd0 sp=0x14000165fb0 pc=0x102763ce0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x14000165fd0 sp=0x14000165fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:105 +0x964
+
+goroutine 12 [runnable]:
+main.main.func4()
+	/Users/craig.jones/projects/wazero/main.go:105 fp=0x1400008e7d0 sp=0x1400008e7d0 pc=0x102763cb0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1400008e7d0 sp=0x1400008e7d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:105 +0x964
+
+goroutine 13 [runnable]:
+main.main.func4()
+	/Users/craig.jones/projects/wazero/main.go:105 fp=0x1400004cfd0 sp=0x1400004cfd0 pc=0x102763cb0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1400004cfd0 sp=0x1400004cfd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:105 +0x964
+
+goroutine 14 [runnable]:
+main.main.func4()
+	/Users/craig.jones/projects/wazero/main.go:105 fp=0x1400004d7d0 sp=0x1400004d7d0 pc=0x102763cb0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1400004d7d0 sp=0x1400004d7d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:105 +0x964
+
+goroutine 15 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1400004dfd0 sp=0x1400004dfd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1400004dfd0 sp=0x1400004dfd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 16 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x140000947d0 sp=0x140000947d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x140000947d0 sp=0x140000947d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 65 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x14000094fd0 sp=0x14000094fd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x14000094fd0 sp=0x14000094fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 66 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x140000957d0 sp=0x140000957d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x140000957d0 sp=0x140000957d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 67 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x14000095fd0 sp=0x14000095fd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x14000095fd0 sp=0x14000095fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 68 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x140000937d0 sp=0x140000937d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x140000937d0 sp=0x140000937d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 69 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d85b7d0 sp=0x1401d85b7d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d85b7d0 sp=0x1401d85b7d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 70 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d85bfd0 sp=0x1401d85bfd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d85bfd0 sp=0x1401d85bfd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 71 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1400004e7d0 sp=0x1400004e7d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1400004e7d0 sp=0x1400004e7d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 72 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x140000507d0 sp=0x140000507d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x140000507d0 sp=0x140000507d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 73 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x14000050fd0 sp=0x14000050fd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x14000050fd0 sp=0x14000050fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 74 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x140000517d0 sp=0x140000517d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x140000517d0 sp=0x140000517d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 75 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x14000051fd0 sp=0x14000051fd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x14000051fd0 sp=0x14000051fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 76 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1400004c7d0 sp=0x1400004c7d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1400004c7d0 sp=0x1400004c7d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 77 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d8577d0 sp=0x1401d8577d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d8577d0 sp=0x1401d8577d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 78 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d857fd0 sp=0x1401d857fd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d857fd0 sp=0x1401d857fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 79 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d8587d0 sp=0x1401d8587d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d8587d0 sp=0x1401d8587d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 80 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d858fd0 sp=0x1401d858fd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d858fd0 sp=0x1401d858fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 81 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d8597d0 sp=0x1401d8597d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d8597d0 sp=0x1401d8597d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 82 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d859fd0 sp=0x1401d859fd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d859fd0 sp=0x1401d859fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 83 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d85a7d0 sp=0x1401d85a7d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d85a7d0 sp=0x1401d85a7d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 84 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d85afd0 sp=0x1401d85afd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d85afd0 sp=0x1401d85afd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 85 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d8637d0 sp=0x1401d8637d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d8637d0 sp=0x1401d8637d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 86 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d863fd0 sp=0x1401d863fd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d863fd0 sp=0x1401d863fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 87 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d8547d0 sp=0x1401d8547d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d8547d0 sp=0x1401d8547d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 88 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d854fd0 sp=0x1401d854fd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d854fd0 sp=0x1401d854fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 89 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d8557d0 sp=0x1401d8557d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d8557d0 sp=0x1401d8557d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 90 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d855fd0 sp=0x1401d855fd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d855fd0 sp=0x1401d855fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 91 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d8567d0 sp=0x1401d8567d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d8567d0 sp=0x1401d8567d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 92 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d856fd0 sp=0x1401d856fd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d856fd0 sp=0x1401d856fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 93 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d85f7d0 sp=0x1401d85f7d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d85f7d0 sp=0x1401d85f7d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 94 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d85ffd0 sp=0x1401d85ffd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d85ffd0 sp=0x1401d85ffd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 95 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d8607d0 sp=0x1401d8607d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d8607d0 sp=0x1401d8607d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 96 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d860fd0 sp=0x1401d860fd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d860fd0 sp=0x1401d860fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 97 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d8617d0 sp=0x1401d8617d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d8617d0 sp=0x1401d8617d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 98 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d861fd0 sp=0x1401d861fd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d861fd0 sp=0x1401d861fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 99 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d8627d0 sp=0x1401d8627d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d8627d0 sp=0x1401d8627d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 100 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d862fd0 sp=0x1401d862fd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d862fd0 sp=0x1401d862fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 101 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d86d7d0 sp=0x1401d86d7d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d86d7d0 sp=0x1401d86d7d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 102 [select]:
+runtime.gopark(0x1401d86de38?, 0x2?, 0x0?, 0x0?, 0x1401d86de14?)
+	/usr/local/go/src/runtime/proc.go:363 +0xe4 fp=0x14016c8ecb0 sp=0x14016c8ec90 pc=0x102679104
+runtime.selectgo(0x14016c8ee38, 0x1401d86de10, 0x1401d86de58?, 0x0, 0x102ab93c8?, 0x1)
+	/usr/local/go/src/runtime/select.go:328 +0x688 fp=0x14016c8edd0 sp=0x14016c8ecb0 pc=0x102688e68
+io.(*pipe).read(0x1400f1b1c80, {0x140001d6a00, 0x200, 0x0?})
+	/usr/local/go/src/io/pipe.go:57 +0x84 fp=0x14016c8ee60 sp=0x14016c8edd0 pc=0x1026aab64
+io.(*PipeReader).Read(0x0?, {0x140001d6a00?, 0x0?, 0x0?})
+	/usr/local/go/src/io/pipe.go:136 +0x24 fp=0x14016c8ee90 sp=0x14016c8ee60 pc=0x1026ab244
+io.ReadAll({0x1027e8518, 0x1400f04d7d0})
+	/usr/local/go/src/io/io.go:661 +0xe4 fp=0x14016c8ef20 sp=0x14016c8ee90 pc=0x1026aa6e4
+main.main.func2({0x0?, 0x0?}, 0x0?)
+	/Users/craig.jones/projects/wazero/main.go:146 +0x68 fp=0x14016c8efa0 sp=0x14016c8ef20 pc=0x102763b78
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:153 +0x38 fp=0x14016c8efd0 sp=0x14016c8efa0 pc=0x102763ad8
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x14016c8efd0 sp=0x14016c8efd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 103 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d85c7d0 sp=0x1401d85c7d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d85c7d0 sp=0x1401d85c7d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 104 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d85cfd0 sp=0x1401d85cfd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d85cfd0 sp=0x1401d85cfd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 105 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d85d7d0 sp=0x1401d85d7d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d85d7d0 sp=0x1401d85d7d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 106 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d85dfd0 sp=0x1401d85dfd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d85dfd0 sp=0x1401d85dfd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 107 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d85e7d0 sp=0x1401d85e7d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d85e7d0 sp=0x1401d85e7d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 108 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d85efd0 sp=0x1401d85efd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d85efd0 sp=0x1401d85efd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 109 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d8697d0 sp=0x1401d8697d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d8697d0 sp=0x1401d8697d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 110 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d869fd0 sp=0x1401d869fd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d869fd0 sp=0x1401d869fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 111 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d86a7d0 sp=0x1401d86a7d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d86a7d0 sp=0x1401d86a7d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 112 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d86afd0 sp=0x1401d86afd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d86afd0 sp=0x1401d86afd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 113 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d86b7d0 sp=0x1401d86b7d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d86b7d0 sp=0x1401d86b7d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 114 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d86bfd0 sp=0x1401d86bfd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d86bfd0 sp=0x1401d86bfd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 115 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d86c7d0 sp=0x1401d86c7d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d86c7d0 sp=0x1401d86c7d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 116 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d86cfd0 sp=0x1401d86cfd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d86cfd0 sp=0x1401d86cfd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 117 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d8777d0 sp=0x1401d8777d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d8777d0 sp=0x1401d8777d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 118 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d877fd0 sp=0x1401d877fd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d877fd0 sp=0x1401d877fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 119 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d8667d0 sp=0x1401d8667d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d8667d0 sp=0x1401d8667d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 120 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d866fd0 sp=0x1401d866fd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d866fd0 sp=0x1401d866fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 121 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d8677d0 sp=0x1401d8677d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d8677d0 sp=0x1401d8677d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 122 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d867fd0 sp=0x1401d867fd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d867fd0 sp=0x1401d867fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 123 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d8687d0 sp=0x1401d8687d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d8687d0 sp=0x1401d8687d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 124 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d868fd0 sp=0x1401d868fd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d868fd0 sp=0x1401d868fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 125 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d8737d0 sp=0x1401d8737d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d8737d0 sp=0x1401d8737d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 126 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d873fd0 sp=0x1401d873fd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d873fd0 sp=0x1401d873fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 127 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d8747d0 sp=0x1401d8747d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d8747d0 sp=0x1401d8747d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 128 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d874fd0 sp=0x1401d874fd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d874fd0 sp=0x1401d874fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 129 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d8757d0 sp=0x1401d8757d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d8757d0 sp=0x1401d8757d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 130 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d875fd0 sp=0x1401d875fd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d875fd0 sp=0x1401d875fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 131 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d8767d0 sp=0x1401d8767d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d8767d0 sp=0x1401d8767d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 132 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d876fd0 sp=0x1401d876fd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d876fd0 sp=0x1401d876fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 133 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d87f7d0 sp=0x1401d87f7d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d87f7d0 sp=0x1401d87f7d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 134 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d87ffd0 sp=0x1401d87ffd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d87ffd0 sp=0x1401d87ffd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 135 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d8707d0 sp=0x1401d8707d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d8707d0 sp=0x1401d8707d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 136 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d870fd0 sp=0x1401d870fd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d870fd0 sp=0x1401d870fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 137 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d8717d0 sp=0x1401d8717d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d8717d0 sp=0x1401d8717d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 138 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d871fd0 sp=0x1401d871fd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d871fd0 sp=0x1401d871fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 139 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d8727d0 sp=0x1401d8727d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d8727d0 sp=0x1401d8727d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 140 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d872fd0 sp=0x1401d872fd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d872fd0 sp=0x1401d872fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 141 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d87b7d0 sp=0x1401d87b7d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d87b7d0 sp=0x1401d87b7d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 142 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d87bfd0 sp=0x1401d87bfd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d87bfd0 sp=0x1401d87bfd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 143 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d87c7d0 sp=0x1401d87c7d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d87c7d0 sp=0x1401d87c7d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 144 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d87cfd0 sp=0x1401d87cfd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d87cfd0 sp=0x1401d87cfd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 145 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d87d7d0 sp=0x1401d87d7d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d87d7d0 sp=0x1401d87d7d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 146 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d87dfd0 sp=0x1401d87dfd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d87dfd0 sp=0x1401d87dfd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 147 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d87e7d0 sp=0x1401d87e7d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d87e7d0 sp=0x1401d87e7d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 148 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d87efd0 sp=0x1401d87efd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d87efd0 sp=0x1401d87efd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 149 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d8897d0 sp=0x1401d8897d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d8897d0 sp=0x1401d8897d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 150 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d889fd0 sp=0x1401d889fd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d889fd0 sp=0x1401d889fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 151 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d8787d0 sp=0x1401d8787d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d8787d0 sp=0x1401d8787d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 152 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d878fd0 sp=0x1401d878fd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d878fd0 sp=0x1401d878fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 153 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d8797d0 sp=0x1401d8797d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d8797d0 sp=0x1401d8797d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 154 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d879fd0 sp=0x1401d879fd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d879fd0 sp=0x1401d879fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 155 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d87a7d0 sp=0x1401d87a7d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d87a7d0 sp=0x1401d87a7d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 156 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d87afd0 sp=0x1401d87afd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d87afd0 sp=0x1401d87afd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 157 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d8857d0 sp=0x1401d8857d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d8857d0 sp=0x1401d8857d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 158 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d885fd0 sp=0x1401d885fd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d885fd0 sp=0x1401d885fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 159 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d8867d0 sp=0x1401d8867d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d8867d0 sp=0x1401d8867d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 160 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d886fd0 sp=0x1401d886fd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d886fd0 sp=0x1401d886fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 161 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d8877d0 sp=0x1401d8877d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d8877d0 sp=0x1401d8877d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 162 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d887fd0 sp=0x1401d887fd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d887fd0 sp=0x1401d887fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 163 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d8887d0 sp=0x1401d8887d0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d8887d0 sp=0x1401d8887d0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+
+goroutine 164 [runnable]:
+main.main.func5()
+	/Users/craig.jones/projects/wazero/main.go:144 fp=0x1401d888fd0 sp=0x1401d888fd0 pc=0x102763aa0
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_arm64.s:1172 +0x4 fp=0x1401d888fd0 sp=0x1401d888fd0 pc=0x1026a3c04
+created by main.main
+	/Users/craig.jones/projects/wazero/main.go:144 +0xbe4
+exit status 2

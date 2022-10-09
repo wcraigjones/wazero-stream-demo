@@ -31,13 +31,11 @@ func main() {
 		outFiles: make(map[string]*PluginFile),
 	}
 
-	pluginStdinReader, pluginStdinWriter := io.Pipe()
-
 	config := wazero.
 		NewModuleConfig().
 		WithStdout(os.Stdout).
 		WithStderr(os.Stderr).
-		WithStdin(pluginStdinReader).
+		WithStdin(os.Stdin).
 		WithFS(pluginFS)
 
 	// Instantiate WASI, which implements system I/O such as console output.
@@ -49,30 +47,33 @@ func main() {
 		log.Panicln(err)
 	}
 
-	wasmWG := sync.WaitGroup{}
-	wasmWG.Add(1)
-
-	go func() {
-		defer wasmWG.Done()
-		_, err = r.InstantiateModule(ctx, code, config)
-		if err != nil {
-			if exitErr, ok := err.(*sys.ExitError); ok && exitErr.ExitCode() != 0 {
-				fmt.Fprintf(os.Stderr, "exit_code: %d\n", exitErr.ExitCode())
-			} else if !ok {
-				log.Panicln(err)
-			}
+	mod, err := r.InstantiateModule(ctx, code, config)
+	if err != nil {
+		if exitErr, ok := err.(*sys.ExitError); ok && exitErr.ExitCode() != 0 {
+			fmt.Fprintf(os.Stderr, "exit_code: %d\n", exitErr.ExitCode())
+		} else if !ok {
+			log.Panicln(err)
 		}
-	}()
+	}
 
 	testWG := sync.WaitGroup{}
 	ids := map[string]*io.PipeReader{}
 	seed := map[string][]byte{}
+	qID := 0
+
+	queues := make([][]string, 10)
+	for i := 0; i < 10; i++ {
+		queues[i] = make([]string, 0)
+	}
 
 	for i := 0; i < 100000; i++ {
 		randBytes := make([]byte, 4096)
 		rand.Read(randBytes)
 		fIn := bytes.NewBuffer(randBytes)
 		id := fmt.Sprint(rand.Int63())
+
+		queues[qID%10] = append(queues[qID%10], id)
+		qID += 1
 
 		fHost, fPlugin := io.Pipe()
 		pluginFS.Register(
@@ -93,12 +94,54 @@ func main() {
 		seed[id] = randBytes
 	}
 
+	do := mod.ExportedFunction("do")
+	// These are undocumented, but exported. See tinygo-org/tinygo#2788
+	malloc := mod.ExportedFunction("malloc")
+	free := mod.ExportedFunction("free")
+
+	execWG := sync.WaitGroup{}
+	for i := 0; i < 10; i++ {
+		execWG.Add(1)
+		go func(id int) {
+			for _, streamID := range queues[id] {
+				// Let's use the argument to this main function in Wasm.
+				streamSize := uint64(len(streamID))
+
+				// Instead of an arbitrary memory offset, use TinyGo's allocator. Notice
+				// there is nothing string-specific in this allocation function. The same
+				// function could be used to pass binary serialized data to Wasm.
+				results, err := malloc.Call(ctx, streamSize)
+				if err != nil {
+					log.Panicln(err)
+				}
+				namePtr := results[0]
+				// This pointer is managed by TinyGo, but TinyGo is unaware of external usage.
+				// So, we have to free it when finished
+				defer free.Call(ctx, namePtr)
+
+				// The pointer is a linear memory offset, which is where we write the name.
+				if !mod.Memory().Write(ctx, uint32(namePtr), []byte(streamID)) {
+					log.Panicf("Memory.Write(%d, %d) out of range of memory size %d",
+						namePtr, streamSize, mod.Memory().Size(ctx))
+				}
+
+				// Now, we can call "greet", which reads the string we wrote to memory!
+				_, err = do.Call(ctx, namePtr, streamSize)
+				if err != nil {
+					log.Panicln(err)
+				}
+			}
+
+			execWG.Done()
+		}(i)
+	}
+
 	fmt.Println("Prepared.")
 	start := time.Now()
 	for id, fHost := range ids {
 		randBytes := seed[id]
 		testWG.Add(1)
-		go func() {
+		go func(id string, fHost *io.PipeReader) {
 			defer testWG.Done()
 			data, err := io.ReadAll(fHost)
 			if err != nil {
@@ -107,14 +150,10 @@ func main() {
 			if !bytes.Equal(randBytes, data) {
 				fmt.Println("Error data mismatch!")
 			}
-		}()
-
-		pluginStdinWriter.Write([]byte(id + "\n"))
+		}(id, fHost)
 	}
 
 	testWG.Wait()
+	execWG.Wait()
 	fmt.Println("Processed:", time.Since(start))
-
-	pluginStdinWriter.Close()
-	wasmWG.Wait()
 }
