@@ -97,8 +97,8 @@ func main() {
 	seed := map[string][]byte{}
 
 	qID := 0
-	workers := 2
-	work := 4
+	workers := 25
+	work := 100000
 
 	pluginFS := &PluginFS{
 		inFiles:  make(map[string]*PluginFile),
@@ -118,9 +118,6 @@ func main() {
 		randBytes := make([]byte, 4096)
 		rand.Read(randBytes)
 		fIn := bytes.NewBuffer(randBytes)
-
-		queues[qID%workers] = append(queues[qID%workers], id)
-		qID += 1
 
 		fHost, fPlugin := io.Pipe()
 		pluginFS.Register(

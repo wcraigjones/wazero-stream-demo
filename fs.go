@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"io"
 	"io/fs"
 	"strings"
@@ -35,9 +34,7 @@ func (f *PluginFile) Mode() fs.FileMode          { return 0444 }
 
 // Close implements fs.File
 func (i *PluginFile) Close() error {
-	fmt.Println("Close called")
 	if i.mode {
-		fmt.Println("Writer close called")
 		i.writer.Close()
 	}
 	return nil
