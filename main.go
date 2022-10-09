@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	_ "embed"
 	"fmt"
+	"io"
+	"io/fs"
 	"log"
 	"math/rand"
 	"os"
@@ -26,14 +29,15 @@ type Runtime struct {
 	do     api.Function
 }
 
-func New() *Runtime {
+func New(f fs.FS) *Runtime {
 	ctx := context.TODO()
 	r := wazero.NewRuntime(ctx)
 	config := wazero.
 		NewModuleConfig().
 		WithStdout(os.Stdout).
 		WithStderr(os.Stderr).
-		WithStdin(os.Stdin)
+		WithStdin(os.Stdin).
+		WithFS(f)
 	wasi_snapshot_preview1.MustInstantiate(ctx, r)
 	code, err := r.CompileModule(ctx, plugin)
 	if err != nil {
@@ -88,9 +92,18 @@ func (r *Runtime) Do(s string) {
 func main() {
 	fmt.Println("making queues")
 
+	testWG := sync.WaitGroup{}
+	ids := map[string]*io.PipeReader{}
+	seed := map[string][]byte{}
+
 	qID := 0
 	workers := 25
 	work := 100000
+
+	pluginFS := &PluginFS{
+		inFiles:  make(map[string]*PluginFile),
+		outFiles: make(map[string]*PluginFile),
+	}
 
 	queues := make([][]string, workers)
 	for i := 0; i < workers; i++ {
@@ -101,13 +114,38 @@ func main() {
 		id := fmt.Sprintf("%x", rand.Int63())
 		queues[qID%workers] = append(queues[qID%workers], id)
 		qID += 1
+
+		randBytes := make([]byte, 4096)
+		rand.Read(randBytes)
+		fIn := bytes.NewBuffer(randBytes)
+
+		queues[qID%workers] = append(queues[qID%workers], id)
+		qID += 1
+
+		fHost, fPlugin := io.Pipe()
+		pluginFS.Register(
+			id,
+			&PluginFile{
+				name:   "in",
+				mode:   true,
+				writer: fPlugin,
+			},
+			&PluginFile{
+				name:   "out",
+				mode:   false,
+				reader: fIn,
+			},
+		)
+
+		ids[id] = fHost
+		seed[id] = randBytes
 	}
 
 	execWG := sync.WaitGroup{}
 	for i := 0; i < workers; i++ {
 		execWG.Add(1)
 		go func(id int) {
-			r := New()
+			r := New(pluginFS)
 			fmt.Printf("worker %d starting\n", id)
 			for _, streamID := range queues[id] {
 				r.Do(streamID)
@@ -116,8 +154,24 @@ func main() {
 		}(i)
 	}
 
-	start := time.Now()
 	fmt.Println("Prepared.")
+	start := time.Now()
+	for id, fHost := range ids {
+		randBytes := seed[id]
+		testWG.Add(1)
+		go func(id string, fHost *io.PipeReader) {
+			defer testWG.Done()
+			data, err := io.ReadAll(fHost)
+			if err != nil {
+				panic(err)
+			}
+			if !bytes.Equal(randBytes, data) {
+				fmt.Println("Error data mismatch!")
+			}
+		}(id, fHost)
+	}
+
+	testWG.Wait()
 	execWG.Wait()
 	fmt.Println("Processed:", time.Since(start))
 }

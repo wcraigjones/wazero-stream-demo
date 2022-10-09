@@ -1,7 +1,9 @@
 package main
 
 import (
-	"hash/adler32"
+	"fmt"
+	"io"
+	"os"
 	"unsafe"
 )
 
@@ -14,9 +16,38 @@ func _do(ptr, size uint32) {
 }
 
 func do(id string) {
-	h := adler32.New()
-	for i := 0; i < 100; i++ {
-		h.Sum([]byte(id))
+	reader, err := os.OpenFile(
+		fmt.Sprintf("out/%v", id),
+		os.O_RDONLY,
+		0,
+	)
+	if err != nil {
+		fmt.Printf("error opening reader: %v\n", err)
+		return
+	}
+	defer reader.Close()
+
+	writer, err := os.OpenFile(
+		fmt.Sprintf("in/%v", id),
+		os.O_WRONLY,
+		0444,
+	)
+	if err != nil {
+		fmt.Printf("error opening writer: %v\n", err)
+		return
+	}
+	defer writer.Close()
+
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		fmt.Printf("error reading: %v\n", err)
+		return
+	}
+
+	_, err = writer.Write(data)
+	if err != nil {
+		fmt.Printf("error writing: %v\n", err)
+		return
 	}
 }
 
