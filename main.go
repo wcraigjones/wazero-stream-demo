@@ -84,7 +84,6 @@ func main() {
 				var namePtr, streamSize uint64
 				{
 					mallocMu.Lock()
-					defer mallocMu.Unlock()
 					fmt.Println("streamID: ", streamID)
 					streamSize = uint64(len(streamID))
 					results, err := malloc.Call(ctx, streamSize)
@@ -93,18 +92,21 @@ func main() {
 						log.Panicln(err)
 					}
 					namePtr = results[0]
-					defer free.Call(ctx, namePtr)
 					fmt.Println("write")
 					if !mod.Memory().Write(ctx, uint32(namePtr), []byte(streamID)) {
 						log.Panicf("Memory.Write(%d, %d) out of range of memory size %d",
 							namePtr, streamSize, mod.Memory().Size(ctx))
 					}
+					mallocMu.Unlock()
 				}
+				fmt.Println("malloc done")
+				defer free.Call(ctx, namePtr)
 				fmt.Println("call")
 				_, err = do.Call(ctx, namePtr, streamSize)
 				if err != nil {
 					log.Panicln(err)
 				}
+				fmt.Println("call done")
 			}
 
 			execWG.Done()
