@@ -73,6 +73,7 @@ func main() {
 	// These are undocumented, but exported. See tinygo-org/tinygo#2788
 	malloc := mod.ExportedFunction("malloc")
 	free := mod.ExportedFunction("free")
+	mallocMu := sync.Mutex{}
 
 	execWG := sync.WaitGroup{}
 	for i := 0; i < workers; i++ {
@@ -80,29 +81,26 @@ func main() {
 		go func(id int) {
 			fmt.Printf("worker %d starting\n", id)
 			for _, streamID := range queues[id] {
-				fmt.Println("streamID: ", streamID)
-				// Let's use the argument to this main function in Wasm.
-				streamSize := uint64(len(streamID))
-
-				// Instead of an arbitrary memory offset, use TinyGo's allocator. Notice
-				// there is nothing string-specific in this allocation function. The same
-				// function could be used to pass binary serialized data to Wasm.
-				results, err := malloc.Call(ctx, streamSize)
-				if err != nil {
-					log.Panicln(err)
+				var namePtr, streamSize uint64
+				{
+					mallocMu.Lock()
+					defer mallocMu.Unlock()
+					fmt.Println("streamID: ", streamID)
+					streamSize = uint64(len(streamID))
+					results, err := malloc.Call(ctx, streamSize)
+					if err != nil {
+						fmt.Println("malloc error")
+						log.Panicln(err)
+					}
+					namePtr = results[0]
+					defer free.Call(ctx, namePtr)
+					fmt.Println("write")
+					if !mod.Memory().Write(ctx, uint32(namePtr), []byte(streamID)) {
+						log.Panicf("Memory.Write(%d, %d) out of range of memory size %d",
+							namePtr, streamSize, mod.Memory().Size(ctx))
+					}
 				}
-				namePtr := results[0]
-				// This pointer is managed by TinyGo, but TinyGo is unaware of external usage.
-				// So, we have to free it when finished
-				defer free.Call(ctx, namePtr)
-
-				// The pointer is a linear memory offset, which is where we write the name.
-				if !mod.Memory().Write(ctx, uint32(namePtr), []byte(streamID)) {
-					log.Panicf("Memory.Write(%d, %d) out of range of memory size %d",
-						namePtr, streamSize, mod.Memory().Size(ctx))
-				}
-
-				// Now, we can call "greet", which reads the string we wrote to memory!
+				fmt.Println("call")
 				_, err = do.Call(ctx, namePtr, streamSize)
 				if err != nil {
 					log.Panicln(err)
