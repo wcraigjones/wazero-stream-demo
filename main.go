@@ -7,11 +7,11 @@ import (
 	"log"
 	"math/rand"
 	"os"
-	"runtime/debug"
 	"sync"
 	"time"
 
 	"github.com/tetratelabs/wazero"
+	"github.com/tetratelabs/wazero/api"
 	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
 	"github.com/tetratelabs/wazero/sys"
 )
@@ -19,30 +19,26 @@ import (
 //go:embed plugin/plugin.wasm
 var plugin []byte
 
-func main() {
-	debug.SetMemoryLimit(2 * 1024 * 1024 * 1024)
-	ctx := context.Background()
+type Runtime struct {
+	R      wazero.Runtime
+	Mod    api.Module
+	malloc api.Function
+	do     api.Function
+}
 
+func New() *Runtime {
+	ctx := context.TODO()
 	r := wazero.NewRuntime(ctx)
-	defer r.Close(ctx)
-
 	config := wazero.
 		NewModuleConfig().
 		WithStdout(os.Stdout).
 		WithStderr(os.Stderr).
 		WithStdin(os.Stdin)
-
-	// Instantiate WASI, which implements system I/O such as console output.
 	wasi_snapshot_preview1.MustInstantiate(ctx, r)
-
-	fmt.Println("compiling")
-	// Compile the WebAssembly module using the default configuration.
 	code, err := r.CompileModule(ctx, plugin)
 	if err != nil {
 		log.Panicln(err)
 	}
-
-	fmt.Println("instantiating")
 	mod, err := r.InstantiateModule(ctx, code, config)
 	if err != nil {
 		if exitErr, ok := err.(*sys.ExitError); ok && exitErr.ExitCode() != 0 {
@@ -51,64 +47,73 @@ func main() {
 			log.Panicln(err)
 		}
 	}
+	do := mod.ExportedFunction("do")
+	if do == nil {
+		panic("nil do")
+	}
+	malloc := mod.ExportedFunction("my_malloc")
+	if malloc == nil {
+		panic("nil malloc")
+	}
 
+	return &Runtime{
+		R:      r,
+		Mod:    mod,
+		malloc: malloc,
+		do:     do,
+	}
+}
+
+func (r *Runtime) Do(s string) {
+	ctx := context.Background()
+	strSize := uint64(len(s))
+	results, err := r.malloc.Call(ctx, strSize)
+	if err != nil {
+		fmt.Println("malloc error")
+		log.Panicln(err)
+	}
+	strPtr := results[0]
+	fmt.Println("write")
+	if !r.Mod.Memory().Write(ctx, uint32(strPtr), []byte(s)) {
+		log.Panicf("Memory.Write(%d, %d) out of range of memory size %d",
+			strPtr, strSize, r.Mod.Memory().Size(ctx))
+	}
+	fmt.Printf("alloc done: %d %x\n", strSize, strPtr)
+
+	_, err = r.do.Call(ctx, strPtr, strSize)
+	if err != nil {
+		log.Panicln(err)
+	}
+	fmt.Println("call done")
+}
+
+func main() {
 	fmt.Println("making queues")
 
 	qID := 0
-	workers := 2
+	workers := 1
+	work := 100000
+
 	queues := make([][]string, workers)
 	for i := 0; i < workers; i++ {
 		queues[i] = make([]string, 0)
 	}
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < work; i++ {
 		id := fmt.Sprintf("%x", rand.Int63())
 		queues[qID%workers] = append(queues[qID%workers], id)
 		qID += 1
 	}
 
-	fmt.Println("getting functions")
-
-	do := mod.ExportedFunction("do")
-	// These are undocumented, but exported. See tinygo-org/tinygo#2788
-	malloc := mod.ExportedFunction("malloc")
-	free := mod.ExportedFunction("free")
-	mallocMu := sync.Mutex{}
-
 	execWG := sync.WaitGroup{}
 	for i := 0; i < workers; i++ {
 		execWG.Add(1)
 		go func(id int) {
+			r := New()
 			fmt.Printf("worker %d starting\n", id)
 			for _, streamID := range queues[id] {
-				var namePtr, streamSize uint64
-				{
-					mallocMu.Lock()
-					fmt.Println("streamID: ", streamID)
-					streamSize = uint64(len(streamID))
-					results, err := malloc.Call(ctx, streamSize)
-					if err != nil {
-						fmt.Println("malloc error")
-						log.Panicln(err)
-					}
-					namePtr = results[0]
-					fmt.Println("write")
-					if !mod.Memory().Write(ctx, uint32(namePtr), []byte(streamID)) {
-						log.Panicf("Memory.Write(%d, %d) out of range of memory size %d",
-							namePtr, streamSize, mod.Memory().Size(ctx))
-					}
-					mallocMu.Unlock()
-				}
-				fmt.Println("malloc done")
-				defer free.Call(ctx, namePtr)
-				fmt.Println("call")
-				_, err = do.Call(ctx, namePtr, streamSize)
-				if err != nil {
-					log.Panicln(err)
-				}
-				fmt.Println("call done")
+				r.Do(streamID)
 			}
-
 			execWG.Done()
 		}(i)
 	}
