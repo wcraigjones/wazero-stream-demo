@@ -97,8 +97,8 @@ func main() {
 	seed := map[string][]byte{}
 
 	qID := 0
-	workers := 25
-	work := 100000
+	workers := 2
+	work := 4
 
 	pluginFS := &PluginFS{
 		inFiles:  make(map[string]*PluginFile),
@@ -127,13 +127,13 @@ func main() {
 			id,
 			&PluginFile{
 				name:   "in",
-				mode:   true,
-				writer: fPlugin,
+				mode:   false,
+				reader: fIn,
 			},
 			&PluginFile{
 				name:   "out",
-				mode:   false,
-				reader: fIn,
+				mode:   true,
+				writer: fPlugin,
 			},
 		)
 

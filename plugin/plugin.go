@@ -17,7 +17,7 @@ func _do(ptr, size uint32) {
 
 func do(id string) {
 	reader, err := os.OpenFile(
-		fmt.Sprintf("out/%v", id),
+		fmt.Sprintf("in/%v", id),
 		os.O_RDONLY,
 		0,
 	)
@@ -28,7 +28,7 @@ func do(id string) {
 	defer reader.Close()
 
 	writer, err := os.OpenFile(
-		fmt.Sprintf("in/%v", id),
+		fmt.Sprintf("out/%v", id),
 		os.O_WRONLY,
 		0444,
 	)
