@@ -9,6 +9,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 var plugin []byte
 
 func main() {
+	debug.SetMemoryLimit(2 * 1024 * 1024 * 1024)
 	ctx := context.Background()
 
 	r := wazero.NewRuntime(ctx)
@@ -35,8 +37,8 @@ func main() {
 		NewModuleConfig().
 		WithStdout(os.Stdout).
 		WithStderr(os.Stderr).
-		WithStdin(os.Stdin).
-		WithFS(pluginFS)
+		WithStdin(os.Stdin)
+		// WithFS(pluginFS)
 
 	// Instantiate WASI, which implements system I/O such as console output.
 	wasi_snapshot_preview1.MustInstantiate(ctx, r)
@@ -61,17 +63,17 @@ func main() {
 	seed := map[string][]byte{}
 	qID := 0
 
-	workers := 1
+	workers := 2
 	queues := make([][]string, workers)
 	for i := 0; i < workers; i++ {
 		queues[i] = make([]string, 0)
 	}
 
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 10; i++ {
 		randBytes := make([]byte, 4096)
 		rand.Read(randBytes)
 		fIn := bytes.NewBuffer(randBytes)
-		id := fmt.Sprint(rand.Int63())
+		id := fmt.Sprintf("%x", rand.Int63())
 
 		queues[qID%workers] = append(queues[qID%workers], id)
 		qID += 1
