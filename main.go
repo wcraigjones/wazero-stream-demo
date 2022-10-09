@@ -72,26 +72,24 @@ func (r *Runtime) Do(s string) {
 		fmt.Println("malloc error")
 		log.Panicln(err)
 	}
+
 	strPtr := results[0]
-	fmt.Println("write")
 	if !r.Mod.Memory().Write(ctx, uint32(strPtr), []byte(s)) {
 		log.Panicf("Memory.Write(%d, %d) out of range of memory size %d",
 			strPtr, strSize, r.Mod.Memory().Size(ctx))
 	}
-	fmt.Printf("alloc done: %d %x\n", strSize, strPtr)
 
 	_, err = r.do.Call(ctx, strPtr, strSize)
 	if err != nil {
 		log.Panicln(err)
 	}
-	fmt.Println("call done")
 }
 
 func main() {
 	fmt.Println("making queues")
 
 	qID := 0
-	workers := 1
+	workers := 25
 	work := 100000
 
 	queues := make([][]string, workers)
