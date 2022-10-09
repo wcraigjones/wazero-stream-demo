@@ -8,13 +8,13 @@ import (
 )
 
 func main() {
-	b := make([]byte, 1)
-	for {
-		_, err := os.Stdin.Read(b)
-		if err != nil {
-			break
-		}
-	}
+	// b := make([]byte, 1)
+	// for {
+	// 	_, err := os.Stdin.Read(b)
+	// 	if err != nil {
+	// 		break
+	// 	}
+	// }
 }
 
 //export do
@@ -24,7 +24,7 @@ func _do(ptr, size uint32) {
 }
 
 func do(id string) {
-	fmt.Println("[module]", id)
+	fmt.Fprintln(os.Stdin, "[module]", id)
 	// reader, err := os.OpenFile(
 	// 	fmt.Sprintf("out/%v", id),
 	// 	os.O_RDONLY,

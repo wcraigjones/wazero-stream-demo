@@ -1,11 +1,9 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	_ "embed"
 	"fmt"
-	"io"
 	"log"
 	"math/rand"
 	"os"
@@ -28,27 +26,23 @@ func main() {
 	r := wazero.NewRuntime(ctx)
 	defer r.Close(ctx)
 
-	pluginFS := &PluginFS{
-		inFiles:  make(map[string]*PluginFile),
-		outFiles: make(map[string]*PluginFile),
-	}
-
 	config := wazero.
 		NewModuleConfig().
 		WithStdout(os.Stdout).
 		WithStderr(os.Stderr).
 		WithStdin(os.Stdin)
-		// WithFS(pluginFS)
 
 	// Instantiate WASI, which implements system I/O such as console output.
 	wasi_snapshot_preview1.MustInstantiate(ctx, r)
 
+	fmt.Println("compiling")
 	// Compile the WebAssembly module using the default configuration.
 	code, err := r.CompileModule(ctx, plugin)
 	if err != nil {
 		log.Panicln(err)
 	}
 
+	fmt.Println("instantiating")
 	mod, err := r.InstantiateModule(ctx, code, config)
 	if err != nil {
 		if exitErr, ok := err.(*sys.ExitError); ok && exitErr.ExitCode() != 0 {
@@ -58,11 +52,9 @@ func main() {
 		}
 	}
 
-	testWG := sync.WaitGroup{}
-	ids := map[string]*io.PipeReader{}
-	seed := map[string][]byte{}
-	qID := 0
+	fmt.Println("making queues")
 
+	qID := 0
 	workers := 2
 	queues := make([][]string, workers)
 	for i := 0; i < workers; i++ {
@@ -70,32 +62,12 @@ func main() {
 	}
 
 	for i := 0; i < 10; i++ {
-		randBytes := make([]byte, 4096)
-		rand.Read(randBytes)
-		fIn := bytes.NewBuffer(randBytes)
 		id := fmt.Sprintf("%x", rand.Int63())
-
 		queues[qID%workers] = append(queues[qID%workers], id)
 		qID += 1
-
-		fHost, fPlugin := io.Pipe()
-		pluginFS.Register(
-			id,
-			&PluginFile{
-				name:   "in",
-				mode:   true,
-				writer: fPlugin,
-			},
-			&PluginFile{
-				name:   "out",
-				mode:   false,
-				reader: fIn,
-			},
-		)
-
-		ids[id] = fHost
-		seed[id] = randBytes
 	}
+
+	fmt.Println("getting functions")
 
 	do := mod.ExportedFunction("do")
 	// These are undocumented, but exported. See tinygo-org/tinygo#2788
@@ -106,7 +78,9 @@ func main() {
 	for i := 0; i < workers; i++ {
 		execWG.Add(1)
 		go func(id int) {
+			fmt.Printf("worker %d starting\n", id)
 			for _, streamID := range queues[id] {
+				fmt.Println("streamID: ", streamID)
 				// Let's use the argument to this main function in Wasm.
 				streamSize := uint64(len(streamID))
 
@@ -139,24 +113,8 @@ func main() {
 		}(i)
 	}
 
-	fmt.Println("Prepared.")
 	start := time.Now()
-	for id, fHost := range ids {
-		randBytes := seed[id]
-		testWG.Add(1)
-		go func(id string, fHost *io.PipeReader) {
-			defer testWG.Done()
-			data, err := io.ReadAll(fHost)
-			if err != nil {
-				panic(err)
-			}
-			if !bytes.Equal(randBytes, data) {
-				fmt.Println("Error data mismatch!")
-			}
-		}(id, fHost)
-	}
-
-	testWG.Wait()
+	fmt.Println("Prepared.")
 	execWG.Wait()
 	fmt.Println("Processed:", time.Since(start))
 }
