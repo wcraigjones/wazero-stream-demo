@@ -68,12 +68,10 @@ var (
 	}
 )
 
-var (
-	// amd64CallingConventionDestinationFunctionModuleInstanceAddressRegister holds *wasm.ModuleInstance of the
-	// next executing function instance. The value is set and used when making function calls
-	// or function returns in the ModuleContextInitialization. See compileModuleContextInitialization.
-	amd64CallingConventionDestinationFunctionModuleInstanceAddressRegister = amd64.RegR12
-)
+// amd64CallingConventionDestinationFunctionModuleInstanceAddressRegister holds *wasm.ModuleInstance of the
+// next executing function instance. The value is set and used when making function calls
+// or function returns in the ModuleContextInitialization. See compileModuleContextInitialization.
+var amd64CallingConventionDestinationFunctionModuleInstanceAddressRegister = amd64.RegR12
 
 func (c *amd64Compiler) String() string {
 	return c.locationStack.String()
@@ -93,15 +91,17 @@ type amd64Compiler struct {
 	currentLabel string
 	// onStackPointerCeilDeterminedCallBack hold a callback which are called when the max stack pointer is determined BEFORE generating native code.
 	onStackPointerCeilDeterminedCallBack func(stackPointerCeil uint64)
+	withListener                         bool
 }
 
-func newAmd64Compiler(ir *wazeroir.CompilationResult) (compiler, error) {
+func newAmd64Compiler(ir *wazeroir.CompilationResult, withListener bool) (compiler, error) {
 	c := &amd64Compiler{
 		assembler:     amd64.NewAssembler(),
 		locationStack: newRuntimeValueLocationStack(),
 		currentLabel:  wazeroir.EntrypointLabel,
 		ir:            ir,
 		labels:        map[string]*amd64LabelInfo{},
+		withListener:  withListener,
 	}
 	return c, nil
 }
@@ -159,6 +159,12 @@ func (c *amd64Compiler) label(labelKey string) *amd64LabelInfo {
 func (c *amd64Compiler) compileGoDefinedHostFunction() error {
 	// First we must update the location stack to reflect the number of host function inputs.
 	c.locationStack.init(c.ir.Signature)
+
+	if c.withListener {
+		if err := c.compileCallBuiltinFunction(builtinFunctionIndexFunctionListenerBefore); err != nil {
+			return err
+		}
+	}
 
 	if err := c.compileCallGoHostFunction(); err != nil {
 		return err
@@ -1302,7 +1308,6 @@ func (c *amd64Compiler) compileDivForInts(is32Bit bool, signed bool) error {
 
 // compileRem implements compiler.compileRem for the amd64 architecture.
 func (c *amd64Compiler) compileRem(o *wazeroir.OperationRem) (err error) {
-
 	var vt runtimeValueType
 	switch o.Type {
 	case wazeroir.SignedInt32:
@@ -2693,7 +2698,8 @@ func (c *amd64Compiler) emitUnsignedInt64ToFloatConversion(isFloat32bit bool) er
 // compileSimpleConversion pops a value type from the stack, and applies the
 // given instruction on it, and push the result onto a register of the given type.
 func (c *amd64Compiler) compileSimpleConversion(convInstruction asm.Instruction,
-	destinationRegisterType registerType, destinationValueType runtimeValueType) error {
+	destinationRegisterType registerType, destinationValueType runtimeValueType,
+) error {
 	origin := c.locationStack.pop()
 	if err := c.compileEnsureOnRegister(origin); err != nil {
 		return err
@@ -2864,7 +2870,8 @@ func (c *amd64Compiler) compileEqOrNe(t wazeroir.UnsignedType, shouldEqual bool)
 }
 
 func (c *amd64Compiler) compileEqOrNeForInts(x1Reg, x2Reg asm.Register, cmpInstruction asm.Instruction,
-	shouldEqual bool) error {
+	shouldEqual bool,
+) error {
 	c.assembler.CompileRegisterToRegister(cmpInstruction, x2Reg, x1Reg)
 
 	// Record that the result is on the conditional register.
@@ -4472,8 +4479,7 @@ func (c *amd64Compiler) compileCallFunctionImpl(functionAddressRegister asm.Regi
 
 	nextStackBasePointerOffset := int64(c.locationStack.sp) - int64(functype.ParamNumInUint64)
 
-	callFrameReturnAddressLoc, callFrameStackBasePointerInBytesLoc, callFrameFunctionLoc :=
-		c.locationStack.pushCallFrame(functype)
+	callFrameReturnAddressLoc, callFrameStackBasePointerInBytesLoc, callFrameFunctionLoc := c.locationStack.pushCallFrame(functype)
 
 	// Save the current stack base pointer at callFrameStackBasePointerInBytesLoc.
 	c.assembler.CompileMemoryToRegister(amd64.MOVQ,
@@ -4572,6 +4578,14 @@ func (c *amd64Compiler) compileReturnFunction() error {
 	// Release all the registers as our calling convention requires the caller-save.
 	if err := c.compileReleaseAllRegistersToStack(); err != nil {
 		return err
+	}
+
+	if c.withListener {
+		if err := c.compileCallBuiltinFunction(builtinFunctionIndexFunctionListenerAfter); err != nil {
+			return err
+		}
+		// After return, we re-initialize the stack base pointer as that is used to return to the caller below.
+		c.compileReservedStackBasePointerInitialization()
 	}
 
 	// amd64CallingConventionDestinationFunctionModuleInstanceAddressRegister holds the module instance's address
@@ -4733,6 +4747,12 @@ func (c *amd64Compiler) compilePreamble() (err error) {
 	// Check if it's necessary to grow the value stack by using max stack pointer.
 	if err = c.compileMaybeGrowStack(); err != nil {
 		return err
+	}
+
+	if c.withListener {
+		if err = c.compileCallBuiltinFunction(builtinFunctionIndexFunctionListenerBefore); err != nil {
+			return err
+		}
 	}
 
 	c.compileReservedStackBasePointerInitialization()

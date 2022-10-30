@@ -1,6 +1,6 @@
 # Vagrant file for FreeBSD
 #
-# Ex.
+# Here's an example:
 #   GOVERSION=$(go env GOVERSION) GOARCH=$(go env GOARCH) vagrant up
 #   vagrant rsync
 #   vagrant ssh -c "cd wazero; go test ./..."
@@ -22,9 +22,12 @@ Vagrant.configure("2") do |config|
   config.vm.provider "virtualbox" do |v|
     v.memory = 1024
     v.cpus = 1
+    # To prevent any DNS-related provisioning errors:
+    # https://serverfault.com/questions/453185/vagrant-virtualbox-dns-10-0-2-3-not-working/506206
+    v.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
   end
 
-  # Ex. `GOVERSION=$(go env GOVERSION) GOARCH=$(go env GOARCH) vagrant provision`
+  # Similar to `GOVERSION=$(go env GOVERSION) GOARCH=$(go env GOARCH) vagrant provision`
   config.vm.provision "install-golang", type: "shell", run: "once" do |sh|
     sh.env = {
       'GOVERSION': ENV['GOVERSION'],

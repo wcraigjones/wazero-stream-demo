@@ -1,16 +1,12 @@
 package wasm
 
 import (
-	"bytes"
 	"context"
 	"encoding/binary"
-	"errors"
 	"fmt"
-	"reflect"
 	"sync"
 
 	"github.com/tetratelabs/wazero/api"
-	experimentalapi "github.com/tetratelabs/wazero/experimental"
 	"github.com/tetratelabs/wazero/internal/ieee754"
 	"github.com/tetratelabs/wazero/internal/leb128"
 	internalsys "github.com/tetratelabs/wazero/internal/sys"
@@ -74,7 +70,8 @@ type (
 
 		// TypeIDs is index-correlated with types and holds typeIDs which is uniquely assigned to a type by store.
 		// This is necessary to achieve fast runtime type checking for indirect function calls at runtime.
-		TypeIDs []FunctionTypeID
+		TypeIDs     []FunctionTypeID
+		TypeIDIndex map[string]FunctionTypeID
 
 		// DataInstances holds data segments bytes of the module.
 		// This is only used by bulk memory operations.
@@ -112,9 +109,6 @@ type (
 		// wasm.Code.
 		IsHostFunction bool
 
-		// Kind describes how this function should be called.
-		Kind FunctionKind
-
 		// Type is the signature of this function.
 		Type *FunctionType
 
@@ -124,10 +118,12 @@ type (
 		// Body is the function body in WebAssembly Binary Format, set when Kind == FunctionKindWasm
 		Body []byte
 
-		// GoFunc holds the runtime representation of host functions.
-		// This is nil when Kind == FunctionKindWasm. Otherwise, all the above fields are ignored as they are
-		// specific to Wasm functions.
-		GoFunc *reflect.Value
+		// GoFunc is non-nil when IsHostFunction and defined in go, either
+		// api.GoFunction or api.GoModuleFunction.
+		//
+		// Note: This has no serialization format, so is not encodable.
+		// See https://www.w3.org/TR/2019/REC-wasm-core-1-20191205/#host-functions%E2%91%A2
+		GoFunc interface{}
 
 		// Fields above here are settable prior to instantiation. Below are set by the Store during instantiation.
 
@@ -142,9 +138,6 @@ type (
 
 		// Definition is known at compile time.
 		Definition api.FunctionDefinition
-
-		// Listener holds a listener to notify when this function is called.
-		Listener experimentalapi.FunctionListener
 	}
 
 	// GlobalInstance represents a global instance in a store.
@@ -170,9 +163,13 @@ const maximumFunctionTypes = 1 << 27
 // addSections adds section elements to the ModuleInstance
 func (m *ModuleInstance) addSections(module *Module, importedFunctions, functions []*FunctionInstance,
 	importedGlobals, globals []*GlobalInstance, tables []*TableInstance, memory, importedMemory *MemoryInstance,
-	types []*FunctionType) {
-
+	types []*FunctionType,
+) {
 	m.Types = types
+	m.TypeIDIndex = make(map[string]FunctionTypeID, len(types))
+	for i, t := range types {
+		m.TypeIDIndex[t.string] = m.TypeIDs[i]
+	}
 	m.Functions = append(importedFunctions, functions...)
 	m.Globals = append(importedGlobals, globals...)
 	m.Tables = tables
@@ -184,13 +181,6 @@ func (m *ModuleInstance) addSections(module *Module, importedFunctions, function
 	}
 
 	m.BuildExports(module.ExportSection)
-	m.buildDataInstances(module.DataSection)
-}
-
-func (m *ModuleInstance) buildDataInstances(segments []*DataSegment) {
-	for _, d := range segments {
-		m.DataInstances = append(m.DataInstances, d.Init)
-	}
 }
 
 func (m *ModuleInstance) buildElementInstances(elements []*ElementSegment) {
@@ -200,6 +190,36 @@ func (m *ModuleInstance) buildElementInstances(elements []*ElementSegment) {
 			// Only passive elements can be access as element instances.
 			// See https://www.w3.org/TR/2022/WD-wasm-core-2-20220419/syntax/modules.html#element-segments
 			m.ElementInstances[i] = *m.Engine.CreateFuncElementInstance(elm.Init)
+		}
+	}
+}
+
+func (m *ModuleInstance) applyTableInits(tables []*TableInstance, tableInits []tableInitEntry) {
+	for _, init := range tableInits {
+		table := tables[init.tableIndex]
+		references := table.References
+		if int(init.offset)+len(init.functionIndexes) > len(references) ||
+			int(init.offset)+init.nullExternRefCount > len(references) {
+			// ErrElementOffsetOutOfBounds is the error raised when the active element offset exceeds the table length.
+			// Before CoreFeatureReferenceTypes, this was checked statically before instantiation, after the proposal,
+			// this must be raised as runtime error (as in assert_trap in spectest), not even an instantiation error.
+			// https://github.com/WebAssembly/spec/blob/d39195773112a22b245ffbe864bab6d1182ccb06/test/core/linking.wast#L264-L274
+			//
+			// In wazero, we ignore it since in any way, the instantiated module and engines are fine and can be used
+			// for function invocations.
+			return
+		}
+
+		if table.Type == RefTypeExternref {
+			for i := 0; i < init.nullExternRefCount; i++ {
+				references[init.offset+uint32(i)] = Reference(0)
+			}
+		} else {
+			for i, fnIndex := range init.functionIndexes {
+				if fnIndex != nil {
+					references[init.offset+uint32(i)] = m.Engine.FunctionInstanceReference(*fnIndex)
+				}
+			}
 		}
 	}
 }
@@ -240,11 +260,13 @@ func (m *ModuleInstance) validateData(data []*DataSegment) (err error) {
 	return
 }
 
-// applyData uses the given data segments and mutate the memory according to the initial contents on it.
-// This is called after all the validation phase passes and out of bounds memory access error here is
-// not a validation error, but rather a runtime error.
+// applyData uses the given data segments and mutate the memory according to the initial contents on it
+// and populate the `DataInstances`. This is called after all the validation phase passes and out of
+// bounds memory access error here is not a validation error, but rather a runtime error.
 func (m *ModuleInstance) applyData(data []*DataSegment) error {
+	m.DataInstances = make([][]byte, len(data))
 	for i, d := range data {
+		m.DataInstances[i] = d.Init
 		if !d.IsPassive() {
 			offset := executeConstExpression(m.Globals, d.OffsetExpression).(int32)
 			if offset < 0 || int(offset)+len(d.Init) > len(m.Memory.Buffer) {
@@ -280,7 +302,7 @@ func NewStore(enabledFeatures api.CoreFeatures, engine Engine) (*Store, *Namespa
 }
 
 // NewNamespace implements the same method as documented on wazero.Runtime.
-func (s *Store) NewNamespace(_ context.Context) *Namespace {
+func (s *Store) NewNamespace(context.Context) *Namespace {
 	ns := newNamespace()
 	s.mux.Lock()
 	defer s.mux.Unlock()
@@ -302,7 +324,6 @@ func (s *Store) Instantiate(
 	module *Module,
 	name string,
 	sys *internalsys.Context,
-	listeners []experimentalapi.FunctionListener,
 ) (*CallContext, error) {
 	// Collect any imported modules to avoid locking the namespace too long.
 	importedModuleNames := map[string]struct{}{}
@@ -322,7 +343,7 @@ func (s *Store) Instantiate(
 	}
 
 	// Instantiate the module and add it to the namespace so that other modules can import it.
-	if callCtx, err := s.instantiate(ctx, ns, module, name, sys, listeners, importedModules); err != nil {
+	if callCtx, err := s.instantiate(ctx, ns, module, name, sys, importedModules); err != nil {
 		ns.deleteModule(name)
 		return nil, err
 	} else {
@@ -339,7 +360,6 @@ func (s *Store) instantiate(
 	module *Module,
 	name string,
 	sysCtx *internalsys.Context,
-	listeners []experimentalapi.FunctionListener,
 	modules map[string]*ModuleInstance,
 ) (*CallContext, error) {
 	typeIDs, err := s.getFunctionTypeIDs(module.TypeSection)
@@ -361,7 +381,7 @@ func (s *Store) instantiate(
 	globals, memory := module.buildGlobals(importedGlobals), module.buildMemory()
 
 	m := &ModuleInstance{Name: name, TypeIDs: typeIDs}
-	functions := m.BuildFunctions(module, listeners)
+	functions := m.BuildFunctions(module)
 
 	// Now we have all instances from imports and local ones, so ready to create a new ModuleInstance.
 	m.addSections(module, importedFunctions, functions, importedGlobals, globals, tables, importedMemory, memory, module.TypeSection)
@@ -376,12 +396,9 @@ func (s *Store) instantiate(
 	}
 
 	// Plus, we are ready to compile functions.
-	m.Engine, err = s.Engine.NewModuleEngine(name, module, importedFunctions, functions, tables, tableInit)
-	if err != nil && !errors.Is(err, ErrElementOffsetOutOfBounds) {
-		// ErrElementOffsetOutOfBounds is not an instantiation error, but rather runtime error, so we ignore it as
-		// in anyway the instantiated module and engines are fine and can be used for function invocations.
-		// See comments on ErrElementOffsetOutOfBounds.
-		return nil, fmt.Errorf("compilation failed: %w", err)
+	m.Engine, err = s.Engine.NewModuleEngine(name, module, importedFunctions, functions)
+	if err != nil {
+		return nil, err
 	}
 
 	// After engine creation, we can create the funcref element instances and initialize funcref type globals.
@@ -392,6 +409,8 @@ func (s *Store) instantiate(
 	if err = m.applyData(module.DataSection); err != nil {
 		return nil, err
 	}
+
+	m.applyTableInits(tables, tableInit)
 
 	// Compile the default context for calls to this module.
 	callCtx := NewCallContext(ns, m, sysCtx)
@@ -408,7 +427,7 @@ func (s *Store) instantiate(
 				module.funcDesc(SectionIDFunction, funcIdx), err)
 		}
 
-		_, err = ce.Call(ctx, callCtx)
+		_, err = ce.Call(ctx, callCtx, nil)
 		if exitErr, ok := err.(*sys.ExitError); ok { // Don't wrap an exit error!
 			return nil, exitErr
 		} else if err != nil {
@@ -535,20 +554,19 @@ func errorInvalidImport(i *Import, idx int, err error) error {
 // Global initialization constant expression can only reference the imported globals.
 // See the note on https://www.w3.org/TR/2019/REC-wasm-core-1-20191205/#constant-expressions%E2%91%A0
 func executeConstExpression(importedGlobals []*GlobalInstance, expr *ConstantExpression) (v interface{}) {
-	r := bytes.NewReader(expr.Data)
 	switch expr.Opcode {
 	case OpcodeI32Const:
 		// Treat constants as signed as their interpretation is not yet known per /RATIONALE.md
-		v, _, _ = leb128.DecodeInt32(r)
+		v, _, _ = leb128.LoadInt32(expr.Data)
 	case OpcodeI64Const:
 		// Treat constants as signed as their interpretation is not yet known per /RATIONALE.md
-		v, _, _ = leb128.DecodeInt64(r)
+		v, _, _ = leb128.LoadInt64(expr.Data)
 	case OpcodeF32Const:
-		v, _ = ieee754.DecodeFloat32(r)
+		v, _ = ieee754.DecodeFloat32(expr.Data)
 	case OpcodeF64Const:
-		v, _ = ieee754.DecodeFloat64(r)
+		v, _ = ieee754.DecodeFloat64(expr.Data)
 	case OpcodeGlobalGet:
-		id, _, _ := leb128.DecodeUint32(r)
+		id, _, _ := leb128.LoadUint32(expr.Data)
 		g := importedGlobals[id]
 		switch g.Type.ValType {
 		case ValueTypeI32:
@@ -575,7 +593,7 @@ func executeConstExpression(importedGlobals []*GlobalInstance, expr *ConstantExp
 		// For ref.func const expression, we temporarily store the index as value,
 		// and if this is the const expr for global, the value will be further downed to
 		// opaque pointer of the engine-specific compiled function.
-		v, _, _ = leb128.DecodeUint32(r)
+		v, _, _ = leb128.LoadUint32(expr.Data)
 	case OpcodeVecV128Const:
 		v = [2]uint64{binary.LittleEndian.Uint64(expr.Data[0:8]), binary.LittleEndian.Uint64(expr.Data[8:16])}
 	}
@@ -586,9 +604,6 @@ func executeConstExpression(importedGlobals []*GlobalInstance, expr *ConstantExp
 const GlobalInstanceNullFuncRefValue int64 = -1
 
 func (s *Store) getFunctionTypeIDs(ts []*FunctionType) ([]FunctionTypeID, error) {
-	// We take write-lock here as the following might end up mutating typeIDs map.
-	s.mux.Lock()
-	defer s.mux.Unlock()
 	ret := make([]FunctionTypeID, len(ts))
 	for i, t := range ts {
 		inst, err := s.getFunctionTypeID(t)
@@ -601,14 +616,22 @@ func (s *Store) getFunctionTypeIDs(ts []*FunctionType) ([]FunctionTypeID, error)
 }
 
 func (s *Store) getFunctionTypeID(t *FunctionType) (FunctionTypeID, error) {
-	key := t.String()
+	key := t.key()
+	s.mux.RLock()
 	id, ok := s.typeIDs[key]
+	s.mux.RUnlock()
 	if !ok {
-		l := uint32(len(s.typeIDs))
-		if l >= s.functionMaxTypes {
+		s.mux.Lock()
+		defer s.mux.Unlock()
+		// Check again in case another goroutine has already added the type.
+		if id, ok = s.typeIDs[key]; ok {
+			return id, nil
+		}
+		l := len(s.typeIDs)
+		if uint32(l) >= s.functionMaxTypes {
 			return 0, fmt.Errorf("too many function types in a store")
 		}
-		id = FunctionTypeID(len(s.typeIDs))
+		id = FunctionTypeID(l)
 		s.typeIDs[key] = id
 	}
 	return id, nil

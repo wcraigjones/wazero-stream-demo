@@ -1,7 +1,9 @@
 package wasm
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"reflect"
@@ -9,53 +11,83 @@ import (
 	"github.com/tetratelabs/wazero/api"
 )
 
-// FunctionKind identifies the type of function that can be called.
-type FunctionKind byte
+type paramsKind byte
 
 const (
-	// FunctionKindWasm is not a Go function: it is implemented in Wasm.
-	FunctionKindWasm FunctionKind = iota
-	// FunctionKindGoNoContext is a function implemented in Go, with a signature matching FunctionType.
-	FunctionKindGoNoContext
-	// FunctionKindGoContext is a function implemented in Go, with a signature matching FunctionType, except arg zero is
-	// a context.Context.
-	FunctionKindGoContext
-	// FunctionKindGoModule is a function implemented in Go, with a signature matching FunctionType, except arg
-	// zero is an api.Module.
-	FunctionKindGoModule
-	// FunctionKindGoContextModule is a function implemented in Go, with a signature matching FunctionType, except arg
-	// zero is a context.Context and arg one is an api.Module.
-	FunctionKindGoContextModule
+	paramsKindNoContext paramsKind = iota
+	paramsKindContext
+	paramsKindContextModule
 )
 
 // Below are reflection code to get the interface type used to parse functions and set values.
 
-var moduleType = reflect.TypeOf((*api.Module)(nil)).Elem()
-var goContextType = reflect.TypeOf((*context.Context)(nil)).Elem()
-var errorType = reflect.TypeOf((*error)(nil)).Elem()
+var (
+	moduleType    = reflect.TypeOf((*api.Module)(nil)).Elem()
+	goContextType = reflect.TypeOf((*context.Context)(nil)).Elem()
+	errorType     = reflect.TypeOf((*error)(nil)).Elem()
+)
 
-// PopGoFuncParams pops the correct number of parameters off the stack into a parameter slice for use in CallGoFunc
-//
-// For example, if the host function F requires the (x1 uint32, x2 float32) parameters, and
-// the stack is [..., A, B], then the function is called as F(A, B) where A and B are interpreted
-// as uint32 and float32 respectively.
-func PopGoFuncParams(f *FunctionInstance, popParam func() uint64) []uint64 {
-	// First, determine how many values we need to pop
-	paramCount := f.GoFunc.Type().NumIn()
-	switch f.Kind {
-	case FunctionKindGoNoContext:
-	case FunctionKindGoContextModule:
-		paramCount -= 2
-	default:
-		paramCount--
-	}
+// compile-time check to ensure reflectGoModuleFunction implements
+// api.GoModuleFunction.
+var _ api.GoModuleFunction = (*reflectGoModuleFunction)(nil)
 
-	return PopValues(paramCount, popParam)
+type reflectGoModuleFunction struct {
+	fn              *reflect.Value
+	params, results []ValueType
 }
 
-// PopValues pops api.ValueType values from the stack and returns them in reverse order.
+// Call implements the same method as documented on api.GoModuleFunction.
+func (f *reflectGoModuleFunction) Call(ctx context.Context, mod api.Module, stack []uint64) {
+	callGoFunc(ctx, mod, f.fn, stack)
+}
+
+// EqualTo is exposed for testing.
+func (f *reflectGoModuleFunction) EqualTo(that interface{}) bool {
+	if f2, ok := that.(*reflectGoModuleFunction); !ok {
+		return false
+	} else {
+		// TODO compare reflect pointers
+		return bytes.Equal(f.params, f2.params) && bytes.Equal(f.results, f2.results)
+	}
+}
+
+// compile-time check to ensure reflectGoFunction implements api.GoFunction.
+var _ api.GoFunction = (*reflectGoFunction)(nil)
+
+type reflectGoFunction struct {
+	fn              *reflect.Value
+	pk              paramsKind
+	params, results []ValueType
+}
+
+// EqualTo is exposed for testing.
+func (f *reflectGoFunction) EqualTo(that interface{}) bool {
+	if f2, ok := that.(*reflectGoFunction); !ok {
+		return false
+	} else {
+		// TODO compare reflect pointers
+		return f.pk == f2.pk &&
+			bytes.Equal(f.params, f2.params) && bytes.Equal(f.results, f2.results)
+	}
+}
+
+// Call implements the same method as documented on api.GoFunction.
+func (f *reflectGoFunction) Call(ctx context.Context, stack []uint64) {
+	if f.pk == paramsKindNoContext {
+		ctx = nil
+	}
+	callGoFunc(ctx, nil, f.fn, stack)
+}
+
+// PopValues pops the specified number of api.ValueType parameters off the
+// stack into a parameter slice for use in api.GoFunction or api.GoModuleFunction.
 //
-// Note: the popper intentionally doesn't return bool or error because the caller's stack depth is trusted.
+// For example, if the host function F requires the (x1 uint32, x2 float32)
+// parameters, and the stack is [..., A, B], then the function is called as
+// F(A, B) where A and B are interpreted as uint32 and float32 respectively.
+//
+// Note: the popper intentionally doesn't return bool or error because the
+// caller's stack depth is trusted.
 func PopValues(count int, popper func() uint64) []uint64 {
 	if count == 0 {
 		return nil
@@ -67,36 +99,33 @@ func PopValues(count int, popper func() uint64) []uint64 {
 	return params
 }
 
-// CallGoFunc executes the FunctionInstance.GoFunc by converting params to Go types. The results of the function call
-// are converted back to api.ValueType.
-//
-// * callCtx is passed to the host function as a first argument.
-//
-// Note: ctx must use the caller's memory, which might be different from the defining module on an imported function.
-func CallGoFunc(ctx context.Context, callCtx *CallContext, f *FunctionInstance, params []uint64) []uint64 {
-	tp := f.GoFunc.Type()
+// callGoFunc executes the reflective function by converting params to Go
+// types. The results of the function call are converted back to api.ValueType.
+func callGoFunc(ctx context.Context, mod api.Module, fn *reflect.Value, stack []uint64) {
+	tp := fn.Type()
 
 	var in []reflect.Value
-	if tp.NumIn() != 0 {
-		in = make([]reflect.Value, tp.NumIn())
+	pLen := tp.NumIn()
+	if pLen != 0 {
+		in = make([]reflect.Value, pLen)
 
 		i := 0
-		switch f.Kind {
-		case FunctionKindGoContext:
+		if ctx != nil {
 			in[0] = newContextVal(ctx)
-			i = 1
-		case FunctionKindGoModule:
-			in[0] = newModuleVal(callCtx)
-			i = 1
-		case FunctionKindGoContextModule:
-			in[0] = newContextVal(ctx)
-			in[1] = newModuleVal(callCtx)
-			i = 2
+			i++
+		}
+		if mod != nil {
+			in[1] = newModuleVal(mod)
+			i++
 		}
 
-		for _, raw := range params {
-			val := reflect.New(tp.In(i)).Elem()
-			k := tp.In(i).Kind()
+		for j := 0; i < pLen; i++ {
+			next := tp.In(i)
+			val := reflect.New(next).Elem()
+			k := next.Kind()
+			raw := stack[j]
+			j++
+
 			switch k {
 			case reflect.Float32:
 				val.SetFloat(float64(math.Float32frombits(uint32(raw))))
@@ -110,30 +139,24 @@ func CallGoFunc(ctx context.Context, callCtx *CallContext, f *FunctionInstance, 
 				panic(fmt.Errorf("BUG: param[%d] has an invalid type: %v", i, k))
 			}
 			in[i] = val
-			i++
 		}
 	}
 
 	// Execute the host function and push back the call result onto the stack.
-	var results []uint64
-	if tp.NumOut() > 0 {
-		results = make([]uint64, 0, tp.NumOut())
-	}
-	for i, ret := range f.GoFunc.Call(in) {
+	for i, ret := range fn.Call(in) {
 		switch ret.Kind() {
 		case reflect.Float32:
-			results = append(results, uint64(math.Float32bits(float32(ret.Float()))))
+			stack[i] = uint64(math.Float32bits(float32(ret.Float())))
 		case reflect.Float64:
-			results = append(results, math.Float64bits(ret.Float()))
+			stack[i] = math.Float64bits(ret.Float())
 		case reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-			results = append(results, ret.Uint())
+			stack[i] = ret.Uint()
 		case reflect.Int32, reflect.Int64:
-			results = append(results, uint64(ret.Int()))
+			stack[i] = uint64(ret.Int())
 		default:
 			panic(fmt.Errorf("BUG: result[%d] has an invalid type: %v", i, ret.Kind()))
 		}
 	}
-	return results
 }
 
 func newContextVal(ctx context.Context) reflect.Value {
@@ -148,19 +171,19 @@ func newModuleVal(m api.Module) reflect.Value {
 	return val
 }
 
-// MustParseGoFuncCode parses Code from the go function or panics.
+// MustParseGoReflectFuncCode parses Code from the go function or panics.
 //
 // Exposing this simplifies FunctionDefinition of host functions in built-in host
 // modules and tests.
-func MustParseGoFuncCode(fn interface{}) *Code {
-	_, _, code, err := parseGoFunc(fn)
+func MustParseGoReflectFuncCode(fn interface{}) *Code {
+	_, _, code, err := parseGoReflectFunc(fn)
 	if err != nil {
 		panic(err)
 	}
 	return code
 }
 
-func parseGoFunc(fn interface{}) (params, results []ValueType, code *Code, err error) {
+func parseGoReflectFunc(fn interface{}) (params, results []ValueType, code *Code, err error) {
 	fnV := reflect.ValueOf(fn)
 	p := fnV.Type()
 
@@ -169,16 +192,19 @@ func parseGoFunc(fn interface{}) (params, results []ValueType, code *Code, err e
 		return
 	}
 
-	fk := kind(p)
-	code = &Code{IsHostFunction: true, Kind: fk, GoFunc: &fnV}
+	pk, kindErr := kind(p)
+	if kindErr != nil {
+		err = kindErr
+		return
+	}
 
 	pOffset := 0
-	switch fk {
-	case FunctionKindGoNoContext:
-	case FunctionKindGoContextModule:
-		pOffset = 2
-	default:
+	switch pk {
+	case paramsKindNoContext:
+	case paramsKindContext:
 		pOffset = 1
+	case paramsKindContextModule:
+		pOffset = 2
 	}
 
 	pCount := p.NumIn() - pOffset
@@ -227,23 +253,32 @@ func parseGoFunc(fn interface{}) (params, results []ValueType, code *Code, err e
 		}
 		return
 	}
+
+	code = &Code{IsHostFunction: true}
+	if pk == paramsKindContextModule {
+		code.GoFunc = &reflectGoModuleFunction{fn: &fnV, params: params, results: results}
+	} else {
+		code.GoFunc = &reflectGoFunction{pk: pk, fn: &fnV, params: params, results: results}
+	}
 	return
 }
 
-func kind(p reflect.Type) FunctionKind {
+func kind(p reflect.Type) (paramsKind, error) {
 	pCount := p.NumIn()
 	if pCount > 0 && p.In(0).Kind() == reflect.Interface {
 		p0 := p.In(0)
 		if p0.Implements(moduleType) {
-			return FunctionKindGoModule
+			return 0, errors.New("invalid signature: api.Module parameter must be preceded by context.Context")
 		} else if p0.Implements(goContextType) {
 			if pCount >= 2 && p.In(1).Implements(moduleType) {
-				return FunctionKindGoContextModule
+				return paramsKindContextModule, nil
 			}
-			return FunctionKindGoContext
+			return paramsKindContext, nil
 		}
 	}
-	return FunctionKindGoNoContext
+	// Without context param allows portability with reflective runtimes.
+	// This allows people to more easily port to wazero.
+	return paramsKindNoContext, nil
 }
 
 func getTypeOf(kind reflect.Kind) (ValueType, bool) {

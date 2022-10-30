@@ -22,20 +22,22 @@ type arm64Compiler struct {
 	// locationStack holds the state of wazeroir virtual stack.
 	// and each item is either placed in register or the actual memory stack.
 	locationStack *runtimeValueLocationStack
-	// labels maps a label (Ex. ".L1_then") to *arm64LabelInfo.
+	// labels maps a label (e.g. ".L1_then") to *arm64LabelInfo.
 	labels map[string]*arm64LabelInfo
 	// stackPointerCeil is the greatest stack pointer value (from runtimeValueLocationStack) seen during compilation.
 	stackPointerCeil uint64
 	// onStackPointerCeilDeterminedCallBack hold a callback which are called when the ceil of stack pointer is determined before generating native code.
 	onStackPointerCeilDeterminedCallBack func(stackPointerCeil uint64)
+	withListener                         bool
 }
 
-func newArm64Compiler(ir *wazeroir.CompilationResult) (compiler, error) {
+func newArm64Compiler(ir *wazeroir.CompilationResult, withListener bool) (compiler, error) {
 	return &arm64Compiler{
 		assembler:     arm64.NewAssembler(arm64ReservedRegisterForTemporary),
 		locationStack: newRuntimeValueLocationStack(),
 		ir:            ir,
 		labels:        map[string]*arm64LabelInfo{},
+		withListener:  withListener,
 	}, nil
 }
 
@@ -74,9 +76,7 @@ const (
 	arm64ReservedRegisterForTemporary = arm64.RegR27
 )
 
-var (
-	arm64CallingConventionModuleInstanceAddressRegister = arm64.RegR29
-)
+var arm64CallingConventionModuleInstanceAddressRegister = arm64.RegR29
 
 const (
 	// arm64CallEngineArchContextCompilerCallReturnAddressOffset is the offset of archContext.nativeCallReturnAddress in callEngine.
@@ -190,10 +190,17 @@ func (c *arm64Compiler) compilePreamble() error {
 		return err
 	}
 
+	if c.withListener {
+		if err := c.compileCallGoFunction(nativeCallStatusCodeCallBuiltInFunction, builtinFunctionIndexFunctionListenerBefore); err != nil {
+			return err
+		}
+	}
+
 	// We must initialize the stack base pointer register so that we can manipulate the stack properly.
 	c.compileReservedStackBasePointerRegisterInitialization()
 
 	c.compileReservedMemoryRegisterInitialization()
+
 	return nil
 }
 
@@ -263,6 +270,14 @@ func (c *arm64Compiler) compileReturnFunction() error {
 	// Release all the registers as our calling convention requires the caller-save.
 	if err := c.compileReleaseAllRegistersToStack(); err != nil {
 		return err
+	}
+
+	if c.withListener {
+		if err := c.compileCallGoFunction(nativeCallStatusCodeCallBuiltInFunction, builtinFunctionIndexFunctionListenerAfter); err != nil {
+			return err
+		}
+		// After return, we re-initialize the stack base pointer as that is used to return to the caller below.
+		c.compileReservedStackBasePointerRegisterInitialization()
 	}
 
 	// arm64CallingConventionModuleInstanceAddressRegister holds the module intstance's address
@@ -340,6 +355,13 @@ func (c *arm64Compiler) compileExitFromNativeCode(status nativeCallStatusCode) {
 func (c *arm64Compiler) compileGoDefinedHostFunction() error {
 	// First we must update the location stack to reflect the number of host function inputs.
 	c.locationStack.init(c.ir.Signature)
+
+	if c.withListener {
+		if err := c.compileCallGoFunction(nativeCallStatusCodeCallBuiltInFunction,
+			builtinFunctionIndexFunctionListenerBefore); err != nil {
+			return err
+		}
+	}
 
 	if err := c.compileCallGoFunction(nativeCallStatusCodeCallGoHostFunction, 0); err != nil {
 		return err
@@ -447,7 +469,7 @@ func (c *arm64Compiler) compileGlobalGet(o *wazeroir.OperationGlobalGet) error {
 
 		c.pushVectorRuntimeValueLocationOnRegister(resultReg)
 	} else {
-		var ldr = arm64.NOP
+		ldr := arm64.NOP
 		var result asm.Register
 		var vt runtimeValueType
 		switch wasmValueType {
@@ -886,8 +908,7 @@ func (c *arm64Compiler) compileCallImpl(targetFunctionAddressRegister asm.Regist
 
 	nextStackBasePointerOffset := int64(c.locationStack.sp) - int64(functype.ParamNumInUint64)
 
-	callFrameReturnAddressLoc, callFrameStackBasePointerInBytesLoc, callFrameFunctionLoc :=
-		c.locationStack.pushCallFrame(functype)
+	callFrameReturnAddressLoc, callFrameStackBasePointerInBytesLoc, callFrameFunctionLoc := c.locationStack.pushCallFrame(functype)
 
 	// Save the current stack base pointer at callFrameStackBasePointerInBytesLoc.
 	c.assembler.CompileMemoryToRegister(arm64.LDRD,
@@ -1297,7 +1318,7 @@ func (c *arm64Compiler) compileSub(o *wazeroir.OperationSub) error {
 
 	// At this point, at least one of x1 or x2 registers is non zero.
 	// Choose the non-zero register as destination.
-	var destinationReg = x1.register
+	destinationReg := x1.register
 	if isZeroRegister(x1.register) {
 		destinationReg = x2.register
 	}
@@ -1691,7 +1712,7 @@ func (c *arm64Compiler) compileAnd(o *wazeroir.OperationAnd) error {
 
 	// At this point, at least one of x1 or x2 registers is non zero.
 	// Choose the non-zero register as destination.
-	var destinationReg = x1.register
+	destinationReg := x1.register
 	if isZeroRegister(x1.register) {
 		destinationReg = x2.register
 	}
@@ -1747,7 +1768,7 @@ func (c *arm64Compiler) compileXor(o *wazeroir.OperationXor) error {
 
 	// At this point, at least one of x1 or x2 registers is non zero.
 	// Choose the non-zero register as destination.
-	var destinationReg = x1.register
+	destinationReg := x1.register
 	if isZeroRegister(x1.register) {
 		destinationReg = x2.register
 	}
@@ -2027,7 +2048,7 @@ func (c *arm64Compiler) compileITruncFromF(o *wazeroir.OperationITruncFromF) err
 
 	var vt runtimeValueType
 	var convinst asm.Instruction
-	var is32bitFloat = o.InputType == wazeroir.Float32
+	is32bitFloat := o.InputType == wazeroir.Float32
 	if is32bitFloat && o.OutputType == wazeroir.SignedInt32 {
 		convinst = arm64.FCVTZSSW
 		vt = runtimeValueTypeI32
@@ -2540,7 +2561,8 @@ func (c *arm64Compiler) compileLoad32(o *wazeroir.OperationLoad32) error {
 
 // compileLoadImpl implements compileLoadImpl* variants for arm64 architecture.
 func (c *arm64Compiler) compileLoadImpl(offsetArg uint32, loadInst asm.Instruction,
-	targetSizeInBytes int64, isFloat bool, resultRuntimeValueType runtimeValueType) error {
+	targetSizeInBytes int64, isFloat bool, resultRuntimeValueType runtimeValueType,
+) error {
 	offsetReg, err := c.compileMemoryAccessOffsetSetup(offsetArg, targetSizeInBytes)
 	if err != nil {
 		return err
@@ -2902,7 +2924,7 @@ func (c *arm64Compiler) compileInitImpl(isTable bool, index, tableIndex uint32) 
 	}
 	c.markRegisterUsed(destinationOffset.register)
 
-	var tableInstanceAddressReg = asm.NilRegister
+	tableInstanceAddressReg := asm.NilRegister
 	if isTable {
 		tableInstanceAddressReg, err = c.allocateRegister(registerTypeGeneralPurpose)
 		if err != nil {
@@ -3948,7 +3970,6 @@ func (c *arm64Compiler) compileReservedMemoryRegisterInitialization() {
 // ce.moduleContext.ModuleInstanceAddress.
 // This is called in two cases: in function preamble, and on the return from (non-Go) function calls.
 func (c *arm64Compiler) compileModuleContextInitialization() error {
-
 	regs, found := c.locationStack.takeFreeRegisters(registerTypeGeneralPurpose, 2)
 	if !found {
 		panic("BUG: all the registers should be free at this point")

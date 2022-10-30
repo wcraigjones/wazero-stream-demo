@@ -3,7 +3,7 @@
 // are accessible from WebAssembly-defined functions via importing ModuleName.
 // All WASI functions return a single Errno result: ErrnoSuccess on success.
 //
-// Ex. Call Instantiate before instantiating any wasm binary that imports
+// e.g. Call Instantiate before instantiating any wasm binary that imports
 // "wasi_snapshot_preview1", Otherwise, it will error due to missing imports.
 //
 //	ctx := context.Background()
@@ -27,8 +27,10 @@ import (
 // ModuleName is the module name WASI functions are exported into.
 //
 // See https://github.com/WebAssembly/WASI/blob/snapshot-01/phases/snapshot/docs.md
-const ModuleName = "wasi_snapshot_preview1"
-const i32, i64 = wasm.ValueTypeI32, wasm.ValueTypeI64
+const (
+	ModuleName = "wasi_snapshot_preview1"
+	i32, i64   = wasm.ValueTypeI32, wasm.ValueTypeI64
+)
 
 // MustInstantiate calls Instantiate or panics on error.
 //
@@ -41,7 +43,7 @@ func MustInstantiate(ctx context.Context, r wazero.Runtime) {
 }
 
 // Instantiate instantiates the ModuleName module into the runtime default
-// namespace..
+// namespace.
 //
 // # Notes
 //
@@ -54,7 +56,6 @@ func Instantiate(ctx context.Context, r wazero.Runtime) (api.Closer, error) {
 
 // Builder configures the ModuleName module for later use via Compile or Instantiate.
 type Builder interface {
-
 	// Compile compiles the ModuleName module that can instantiated in any
 	// namespace (wazero.Namespace).
 	//
@@ -91,6 +92,46 @@ func (b *builder) Instantiate(ctx context.Context, ns wazero.Namespace) (api.Clo
 	return b.hostModuleBuilder().Instantiate(ctx, ns)
 }
 
+// FunctionExporter exports functions into a wazero.HostModuleBuilder.
+type FunctionExporter interface {
+	ExportFunctions(wazero.HostModuleBuilder)
+}
+
+// NewFunctionExporter returns a new FunctionExporter. This is used for the
+// following two use cases:
+//   - Overriding a builtin function with an alternate implementation.
+//   - Exporting functions to the module "wasi_unstable" for legacy code.
+//
+// # Example of overriding default behavior
+//
+//	// Export the default WASI functions.
+//	wasiBuilder := r.NewHostModuleBuilder(ModuleName)
+//	wasi_snapshot_preview1.NewFunctionExporter().ExportFunctions(wasiBuilder)
+//
+//	// Subsequent calls to NewFunctionBuilder override built-in exports.
+//	wasiBuilder.NewFunctionBuilder().
+//		WithFunc(func(ctx context.Context, mod api.Module, exitCode uint32) {
+//		// your custom logic
+//		}).Export("proc_exit")
+//
+// # Example of using the old module name for WASI
+//
+//	// Instantiate the current WASI functions under the wasi_unstable
+//	// instead of wasi_snapshot_preview1.
+//	wasiBuilder := r.NewHostModuleBuilder("wasi_unstable")
+//	wasi_snapshot_preview1.NewFunctionExporter().ExportFunctions(wasiBuilder)
+//	_, err := wasiBuilder.Instantiate(testCtx, r)
+func NewFunctionExporter() FunctionExporter {
+	return &functionExporter{}
+}
+
+type functionExporter struct{}
+
+// ExportFunctions implements FunctionExporter.ExportFunctions
+func (functionExporter) ExportFunctions(builder wazero.HostModuleBuilder) {
+	exportFunctions(builder)
+}
+
 // ## Translation notes
 // ### String
 // WebAssembly 1.0 has no string type, so any string input parameter expands to two uint32 parameters: offset
@@ -121,55 +162,57 @@ func (b *builder) Instantiate(ctx context.Context, ns wazero.Namespace) (api.Clo
 // exportFunctions adds all go functions that implement wasi.
 // These should be exported in the module named ModuleName.
 func exportFunctions(builder wazero.HostModuleBuilder) {
+	exporter := builder.(wasm.HostFuncExporter)
+
 	// Note: these are ordered per spec for consistency even if the resulting
 	// map can't guarantee that.
 	// See https://github.com/WebAssembly/WASI/blob/snapshot-01/phases/snapshot/docs.md#functions
-	builder.ExportFunction(argsGet.Name, argsGet)
-	builder.ExportFunction(argsSizesGet.Name, argsSizesGet)
-	builder.ExportFunction(environGet.Name, environGet)
-	builder.ExportFunction(environSizesGet.Name, environSizesGet)
-	builder.ExportFunction(clockResGet.Name, clockResGet)
-	builder.ExportFunction(clockTimeGet.Name, clockTimeGet)
-	builder.ExportFunction(fdAdvise.Name, fdAdvise)
-	builder.ExportFunction(fdAllocate.Name, fdAllocate)
-	builder.ExportFunction(fdClose.Name, fdClose)
-	builder.ExportFunction(fdDatasync.Name, fdDatasync)
-	builder.ExportFunction(fdFdstatGet.Name, fdFdstatGet)
-	builder.ExportFunction(fdFdstatSetFlags.Name, fdFdstatSetFlags)
-	builder.ExportFunction(fdFdstatSetRights.Name, fdFdstatSetRights)
-	builder.ExportFunction(fdFilestatGet.Name, fdFilestatGet)
-	builder.ExportFunction(fdFilestatSetSize.Name, fdFilestatSetSize)
-	builder.ExportFunction(fdFilestatSetTimes.Name, fdFilestatSetTimes)
-	builder.ExportFunction(fdPread.Name, fdPread)
-	builder.ExportFunction(fdPrestatGet.Name, fdPrestatGet)
-	builder.ExportFunction(fdPrestatDirName.Name, fdPrestatDirName)
-	builder.ExportFunction(fdPwrite.Name, fdPwrite)
-	builder.ExportFunction(fdRead.Name, fdRead)
-	builder.ExportFunction(fdReaddir.Name, fdReaddir)
-	builder.ExportFunction(fdRenumber.Name, fdRenumber)
-	builder.ExportFunction(fdSeek.Name, fdSeek)
-	builder.ExportFunction(fdSync.Name, fdSync)
-	builder.ExportFunction(fdTell.Name, fdTell)
-	builder.ExportFunction(fdWrite.Name, fdWrite)
-	builder.ExportFunction(pathCreateDirectory.Name, pathCreateDirectory)
-	builder.ExportFunction(pathFilestatGet.Name, pathFilestatGet)
-	builder.ExportFunction(pathFilestatSetTimes.Name, pathFilestatSetTimes)
-	builder.ExportFunction(pathLink.Name, pathLink)
-	builder.ExportFunction(pathOpen.Name, pathOpen)
-	builder.ExportFunction(pathReadlink.Name, pathReadlink)
-	builder.ExportFunction(pathRemoveDirectory.Name, pathRemoveDirectory)
-	builder.ExportFunction(pathRename.Name, pathRename)
-	builder.ExportFunction(pathSymlink.Name, pathSymlink)
-	builder.ExportFunction(pathUnlinkFile.Name, pathUnlinkFile)
-	builder.ExportFunction(pollOneoff.Name, pollOneoff)
-	builder.ExportFunction(procExit.Name, procExit)
-	builder.ExportFunction(procRaise.Name, procRaise)
-	builder.ExportFunction(schedYield.Name, schedYield)
-	builder.ExportFunction(randomGet.Name, randomGet)
-	builder.ExportFunction(sockAccept.Name, sockAccept)
-	builder.ExportFunction(sockRecv.Name, sockRecv)
-	builder.ExportFunction(sockSend.Name, sockSend)
-	builder.ExportFunction(sockShutdown.Name, sockShutdown)
+	exporter.ExportHostFunc(argsGet)
+	exporter.ExportHostFunc(argsSizesGet)
+	exporter.ExportHostFunc(environGet)
+	exporter.ExportHostFunc(environSizesGet)
+	exporter.ExportHostFunc(clockResGet)
+	exporter.ExportHostFunc(clockTimeGet)
+	exporter.ExportHostFunc(fdAdvise)
+	exporter.ExportHostFunc(fdAllocate)
+	exporter.ExportHostFunc(fdClose)
+	exporter.ExportHostFunc(fdDatasync)
+	exporter.ExportHostFunc(fdFdstatGet)
+	exporter.ExportHostFunc(fdFdstatSetFlags)
+	exporter.ExportHostFunc(fdFdstatSetRights)
+	exporter.ExportHostFunc(fdFilestatGet)
+	exporter.ExportHostFunc(fdFilestatSetSize)
+	exporter.ExportHostFunc(fdFilestatSetTimes)
+	exporter.ExportHostFunc(fdPread)
+	exporter.ExportHostFunc(fdPrestatGet)
+	exporter.ExportHostFunc(fdPrestatDirName)
+	exporter.ExportHostFunc(fdPwrite)
+	exporter.ExportHostFunc(fdRead)
+	exporter.ExportHostFunc(fdReaddir)
+	exporter.ExportHostFunc(fdRenumber)
+	exporter.ExportHostFunc(fdSeek)
+	exporter.ExportHostFunc(fdSync)
+	exporter.ExportHostFunc(fdTell)
+	exporter.ExportHostFunc(fdWrite)
+	exporter.ExportHostFunc(pathCreateDirectory)
+	exporter.ExportHostFunc(pathFilestatGet)
+	exporter.ExportHostFunc(pathFilestatSetTimes)
+	exporter.ExportHostFunc(pathLink)
+	exporter.ExportHostFunc(pathOpen)
+	exporter.ExportHostFunc(pathReadlink)
+	exporter.ExportHostFunc(pathRemoveDirectory)
+	exporter.ExportHostFunc(pathRename)
+	exporter.ExportHostFunc(pathSymlink)
+	exporter.ExportHostFunc(pathUnlinkFile)
+	exporter.ExportHostFunc(pollOneoff)
+	exporter.ExportHostFunc(procExit)
+	exporter.ExportHostFunc(procRaise)
+	exporter.ExportHostFunc(schedYield)
+	exporter.ExportHostFunc(randomGet)
+	exporter.ExportHostFunc(sockAccept)
+	exporter.ExportHostFunc(sockRecv)
+	exporter.ExportHostFunc(sockSend)
+	exporter.ExportHostFunc(sockShutdown)
 }
 
 func writeOffsetsAndNullTerminatedValues(ctx context.Context, mem api.Memory, values []string, offsets, bytes uint32) Errno {
@@ -192,6 +235,16 @@ func writeOffsetsAndNullTerminatedValues(ctx context.Context, mem api.Memory, va
 	}
 
 	return ErrnoSuccess
+}
+
+// wasiFunc special cases that all WASI functions return a single Errno
+// result. The returned value will be written back to the stack at index zero.
+type wasiFunc func(ctx context.Context, mod api.Module, params []uint64) Errno
+
+// Call implements the same method as documented on api.GoModuleFunction.
+func (f wasiFunc) Call(ctx context.Context, mod api.Module, stack []uint64) {
+	// Write the result back onto the stack
+	stack[0] = uint64(f(ctx, mod, stack))
 }
 
 // stubFunction stubs for GrainLang per #271.
