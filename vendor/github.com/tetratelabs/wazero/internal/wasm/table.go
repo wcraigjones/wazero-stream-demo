@@ -1,7 +1,6 @@
 package wasm
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"math"
@@ -163,13 +162,20 @@ func (m *Module) validateTable(enabledFeatures api.CoreFeatures, tables []*Table
 	// are any imported globals that are known to be invalid by their declarations.
 	for i, elem := range m.ElementSection {
 		idx := Index(i)
-
 		initCount := uint32(len(elem.Init))
 
-		// Any offset applied is to the element, not the function index: validate here if the funcidx is sound.
-		for ei, funcIdx := range elem.Init {
-			if funcIdx != nil && *funcIdx >= funcCount {
-				return nil, fmt.Errorf("%s[%d].init[%d] funcidx %d out of range", SectionIDName(SectionIDElement), idx, ei, *funcIdx)
+		if elem.Type == RefTypeFuncref {
+			// Any offset applied is to the element, not the function index: validate here if the funcidx is sound.
+			for ei, funcIdx := range elem.Init {
+				if funcIdx != nil && *funcIdx >= funcCount {
+					return nil, fmt.Errorf("%s[%d].init[%d] funcidx %d out of range", SectionIDName(SectionIDElement), idx, ei, *funcIdx)
+				}
+			}
+		} else {
+			for j, elem := range elem.Init {
+				if elem != nil {
+					return nil, fmt.Errorf("%s[%d].init[%d] must be ref.null but was %v", SectionIDName(SectionIDElement), idx, j, *elem)
+				}
 			}
 		}
 
@@ -178,14 +184,17 @@ func (m *Module) validateTable(enabledFeatures api.CoreFeatures, tables []*Table
 				return nil, fmt.Errorf("unknown table %d as active element target", elem.TableIndex)
 			}
 
-			if elem.Type != RefTypeFuncref && elem.Type != RefTypeExternref {
-				return nil, fmt.Errorf("only funcref or externref element can be used to initialize table, but was %s", RefTypeName(elem.Type))
+			t := tables[elem.TableIndex]
+			if t.Type != elem.Type {
+				return nil, fmt.Errorf("element type mismatch: table has %s but element has %s",
+					RefTypeName(t.Type), RefTypeName(elem.Type),
+				)
 			}
 
 			// global.get needs to be discovered during initialization
 			oc := elem.OffsetExpr.Opcode
 			if oc == OpcodeGlobalGet {
-				globalIdx, _, err := leb128.DecodeUint32(bytes.NewReader(elem.OffsetExpr.Data))
+				globalIdx, _, err := leb128.LoadUint32(elem.OffsetExpr.Data)
 				if err != nil {
 					return nil, fmt.Errorf("%s[%d] couldn't read global.get parameter: %w", SectionIDName(SectionIDElement), idx, err)
 				} else if err = m.verifyImportGlobalI32(SectionIDElement, idx, globalIdx); err != nil {
@@ -199,13 +208,11 @@ func (m *Module) validateTable(enabledFeatures api.CoreFeatures, tables []*Table
 				ret = append(ret, &validatedActiveElementSegment{opcode: oc, arg: globalIdx, init: elem.Init, tableIndex: elem.TableIndex})
 			} else if oc == OpcodeI32Const {
 				// Treat constants as signed as their interpretation is not yet known per /RATIONALE.md
-				o, _, err := leb128.DecodeInt32(bytes.NewReader(elem.OffsetExpr.Data))
+				o, _, err := leb128.LoadInt32(elem.OffsetExpr.Data)
 				if err != nil {
 					return nil, fmt.Errorf("%s[%d] couldn't read i32.const parameter: %w", SectionIDName(SectionIDElement), idx, err)
 				}
 				offset := Index(o)
-
-				t := tables[elem.TableIndex]
 
 				// Per https://github.com/WebAssembly/spec/blob/wg-1.0/test/core/elem.wast#L117 we must pass if imported
 				// table has set its min=0. Per https://github.com/WebAssembly/spec/blob/wg-1.0/test/core/elem.wast#L142, we
@@ -238,7 +245,7 @@ func (m *Module) validateTable(enabledFeatures api.CoreFeatures, tables []*Table
 // If the result `init` is non-nil, it is the `tableInit` parameter of Engine.NewModuleEngine.
 //
 // Note: An error is only possible when an ElementSegment.OffsetExpr is out of range of the TableInstance.Min.
-func (m *Module) buildTables(importedTables []*TableInstance, importedGlobals []*GlobalInstance, skipBoundCheck bool) (tables []*TableInstance, inits []TableInitEntry, err error) {
+func (m *Module) buildTables(importedTables []*TableInstance, importedGlobals []*GlobalInstance, skipBoundCheck bool) (tables []*TableInstance, inits []tableInitEntry, err error) {
 	tables = importedTables
 
 	for _, tsec := range m.TableSection {
@@ -271,11 +278,32 @@ func (m *Module) buildTables(importedTables []*TableInstance, importedGlobals []
 				return
 			}
 		}
-		inits = append(inits, TableInitEntry{
-			TableIndex: elem.tableIndex, Offset: offset, FunctionIndexes: elem.init,
-		})
+
+		if table.Type == RefTypeExternref {
+			inits = append(inits, tableInitEntry{
+				tableIndex: elem.tableIndex, offset: offset,
+				// ExternRef elements are guaranteed to be all null via the validation phase.
+				nullExternRefCount: len(elem.init),
+			})
+		} else {
+			inits = append(inits, tableInitEntry{
+				tableIndex: elem.tableIndex, offset: offset, functionIndexes: elem.init,
+			})
+		}
 	}
 	return
+}
+
+// tableInitEntry is normalized element segment used for initializing tables.
+type tableInitEntry struct {
+	tableIndex Index
+	// offset is the offset in the table from which the table is initialized by engine.
+	offset Index
+	// functionIndexes contains nullable function indexes. This is set when the target table has RefTypeFuncref.
+	functionIndexes []*Index
+	// nullExternRefCount is the number of nul reference which is the only available RefTypeExternref value in elements as of
+	// WebAssembly 2.0. This is set when the target table has RefTypeExternref.
+	nullExternRefCount int
 }
 
 // checkSegmentBounds fails if the capacity needed for an ElementSegment.Init is larger than limitsType.Min
@@ -283,8 +311,8 @@ func (m *Module) buildTables(importedTables []*TableInstance, importedGlobals []
 // WebAssembly 1.0 (20191205) doesn't forbid growing to accommodate element segments, and spectests are inconsistent.
 // For example, the spectests enforce elements within Table limitsType.Min, but ignore Import.DescTable min. What this
 // means is we have to delay offset checks on imported tables until we link to them.
-// Ex. https://github.com/WebAssembly/spec/blob/wg-1.0/test/core/elem.wast#L117 wants pass on min=0 for import
-// Ex. https://github.com/WebAssembly/spec/blob/wg-1.0/test/core/elem.wast#L142 wants fail on min=0 module-defined
+// e.g. https://github.com/WebAssembly/spec/blob/wg-1.0/test/core/elem.wast#L117 wants pass on min=0 for import
+// e.g. https://github.com/WebAssembly/spec/blob/wg-1.0/test/core/elem.wast#L142 wants fail on min=0 module-defined
 func checkSegmentBounds(min uint32, requireMin uint64, idx Index) error { // uint64 in case offset was set to -1
 	if requireMin > uint64(min) {
 		return fmt.Errorf("%s[%d].init exceeds min table size", SectionIDName(SectionIDElement), idx)

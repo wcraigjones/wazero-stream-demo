@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math"
 	"math/bits"
-	"reflect"
 	"strings"
 	"sync"
 	"unsafe"
@@ -171,14 +170,16 @@ type callFrame struct {
 }
 
 type code struct {
-	body   []*interpreterOp
-	hostFn *reflect.Value
+	body     []*interpreterOp
+	listener experimental.FunctionListener
+	hostFn   interface{}
 }
 
 type function struct {
 	source *wasm.FunctionInstance
 	body   []*interpreterOp
-	hostFn *reflect.Value
+	hostFn interface{}
+	parent *code
 }
 
 // functionFromUintptr resurrects the original *function from the given uintptr
@@ -198,6 +199,7 @@ func (c *code) instantiate(f *wasm.FunctionInstance) *function {
 		source: f,
 		body:   c.body,
 		hostFn: c.hostFn,
+		parent: c,
 	}
 }
 
@@ -221,36 +223,45 @@ type interpreterOp struct {
 const callFrameStackSize = 0
 
 // CompileModule implements the same method as documented on wasm.Engine.
-func (e *engine) CompileModule(ctx context.Context, module *wasm.Module) error {
+func (e *engine) CompileModule(ctx context.Context, module *wasm.Module, listeners []experimental.FunctionListener) error {
 	if _, ok := e.getCodes(module); ok { // cache hit!
 		return nil
 	}
 
-	funcs := make([]*code, 0, len(module.FunctionSection))
+	funcs := make([]*code, len(module.FunctionSection))
 	irs, err := wazeroir.CompileFunctions(ctx, e.enabledFeatures, callFrameStackSize, module)
 	if err != nil {
 		return err
 	}
 	for i, ir := range irs {
+		var lsn experimental.FunctionListener
+		if i < len(listeners) {
+			lsn = listeners[i]
+		}
+
 		// If this is the host function, there's nothing to do as the runtime representation of
 		// host function in interpreter is its Go function itself as opposed to Wasm functions,
 		// which need to be compiled down to wazeroir.
 		if ir.GoFunc != nil {
-			funcs = append(funcs, &code{hostFn: ir.GoFunc})
+			funcs[i] = &code{hostFn: ir.GoFunc, listener: lsn}
 			continue
-		} else if compiled, err := e.lowerIR(ir); err != nil {
-			def := module.FunctionDefinitionSection[uint32(i)+module.ImportFuncCount()]
-			return fmt.Errorf("failed to lower func[%s] to wazeroir: %w", def.DebugName(), err)
 		} else {
-			funcs = append(funcs, compiled)
+			compiled, err := e.lowerIR(ir)
+			if err != nil {
+				def := module.FunctionDefinitionSection[uint32(i)+module.ImportFuncCount()]
+				return fmt.Errorf("failed to lower func[%s] to wazeroir: %w", def.DebugName(), err)
+			}
+			compiled.listener = lsn
+			funcs[i] = compiled
 		}
+
 	}
 	e.addCodes(module, funcs)
 	return nil
 }
 
 // NewModuleEngine implements the same method as documented on wasm.Engine.
-func (e *engine) NewModuleEngine(name string, module *wasm.Module, importedFunctions, moduleFunctions []*wasm.FunctionInstance, tables []*wasm.TableInstance, tableInits []wasm.TableInitEntry) (wasm.ModuleEngine, error) {
+func (e *engine) NewModuleEngine(name string, module *wasm.Module, importedFunctions, moduleFunctions []*wasm.FunctionInstance) (wasm.ModuleEngine, error) {
 	imported := uint32(len(importedFunctions))
 	me := &moduleEngine{
 		name:                  name,
@@ -272,19 +283,6 @@ func (e *engine) NewModuleEngine(name string, module *wasm.Module, importedFunct
 		f := moduleFunctions[i]
 		insntantiatedcode := c.instantiate(f)
 		me.functions = append(me.functions, insntantiatedcode)
-	}
-
-	for _, init := range tableInits {
-		references := tables[init.TableIndex].References
-		if int(init.Offset)+len(init.FunctionIndexes) > len(references) {
-			return me, wasm.ErrElementOffsetOutOfBounds
-		}
-
-		for i, fnIndex := range init.FunctionIndexes {
-			if fnIndex != nil {
-				references[init.Offset+uint32(i)] = uintptr(unsafe.Pointer(me.functions[*fnIndex]))
-			}
-		}
 	}
 	return me, nil
 }
@@ -748,7 +746,7 @@ func (e *moduleEngine) CreateFuncElementInstance(indexes []*wasm.Index) *wasm.El
 	}
 }
 
-// InitializeFuncrefGlobals implements the same method as documented on wasm.InitializeFuncrefGlobals.
+// InitializeFuncrefGlobals implements the same method as documented on wasm.ModuleEngine.
 func (e *moduleEngine) InitializeFuncrefGlobals(globals []*wasm.GlobalInstance) {
 	for _, g := range globals {
 		if g.Type.ValType == wasm.ValueTypeFuncref {
@@ -762,6 +760,12 @@ func (e *moduleEngine) InitializeFuncrefGlobals(globals []*wasm.GlobalInstance) 
 	}
 }
 
+// FunctionInstanceReference implements the same method as documented on wasm.ModuleEngine.
+func (e *moduleEngine) FunctionInstanceReference(funcIndex wasm.Index) wasm.Reference {
+	return uintptr(unsafe.Pointer(e.functions[funcIndex]))
+}
+
+// NewCallEngine implements the same method as documented on wasm.ModuleEngine.
 func (e *moduleEngine) NewCallEngine(callCtx *wasm.CallContext, f *wasm.FunctionInstance) (ce wasm.CallEngine, err error) {
 	// Note: The input parameters are pre-validated, so a compiled function is only absent on close. Updates to
 	// code on close aren't locked, neither is this read.
@@ -775,9 +779,36 @@ func (e *moduleEngine) NewCallEngine(callCtx *wasm.CallContext, f *wasm.Function
 	return e.newCallEngine(f, compiled), nil
 }
 
-// Call implements the same method as documented on wasm.ModuleEngine.
-func (ce *callEngine) Call(ctx context.Context, m *wasm.CallContext, params ...uint64) (results []uint64, err error) {
-	paramSignature := ce.source.Type.ParamNumInUint64
+// LookupFunction implements the same method as documented on wasm.ModuleEngine.
+func (e *moduleEngine) LookupFunction(t *wasm.TableInstance, typeId wasm.FunctionTypeID, tableOffset wasm.Index) (idx wasm.Index, err error) {
+	if tableOffset >= uint32(len(t.References)) {
+		err = wasmruntime.ErrRuntimeInvalidTableAccess
+		return
+	}
+	rawPtr := t.References[tableOffset]
+	if rawPtr == 0 {
+		err = wasmruntime.ErrRuntimeInvalidTableAccess
+		return
+	}
+
+	tf := functionFromUintptr(rawPtr)
+	if tf.source.TypeID != typeId {
+		err = wasmruntime.ErrRuntimeIndirectCallTypeMismatch
+		return
+	}
+	idx = tf.source.Idx
+
+	return
+}
+
+// Call implements the same method as documented on wasm.CallEngine.
+func (ce *callEngine) Call(ctx context.Context, m *wasm.CallContext, params []uint64) (results []uint64, err error) {
+	return ce.call(ctx, m, ce.compiled, params)
+}
+
+func (ce *callEngine) call(ctx context.Context, m *wasm.CallContext, tf *function, params []uint64) (results []uint64, err error) {
+	ft := tf.source.Type
+	paramSignature := ft.ParamNumInUint64
 	paramCount := len(params)
 	if paramSignature != paramCount {
 		return nil, fmt.Errorf("expected %d params, but passed %d", paramSignature, paramCount)
@@ -799,9 +830,12 @@ func (ce *callEngine) Call(ctx context.Context, m *wasm.CallContext, params ...u
 		ce.pushValue(param)
 	}
 
-	ce.callFunction(ctx, m, ce.compiled)
+	ce.callFunction(ctx, m, tf)
 
-	results = wasm.PopValues(ce.source.Type.ResultNumInUint64, ce.popValue)
+	// This returns a safe copy of the results, instead of a slice view. If we
+	// returned a re-slice, the caller could accidentally or purposefully
+	// corrupt the stack of subsequent calls.
+	results = wasm.PopValues(ft.ResultNumInUint64, ce.popValue)
 	return
 }
 
@@ -826,27 +860,36 @@ func (ce *callEngine) recoverOnCall(v interface{}) (err error) {
 func (ce *callEngine) callFunction(ctx context.Context, callCtx *wasm.CallContext, f *function) {
 	if f.hostFn != nil {
 		ce.callGoFuncWithStack(ctx, callCtx, f)
-	} else if lsn := f.source.Listener; lsn != nil {
+	} else if lsn := f.parent.listener; lsn != nil {
 		ce.callNativeFuncWithListener(ctx, callCtx, f, lsn)
 	} else {
 		ce.callNativeFunc(ctx, callCtx, f)
 	}
 }
 
-func (ce *callEngine) callGoFunc(ctx context.Context, callCtx *wasm.CallContext, f *function, params []uint64) (results []uint64) {
-	callCtx = callCtx.WithMemory(ce.callerMemory())
-	if f.source.Listener != nil {
-		ctx = f.source.Listener.Before(ctx, f.source.Definition, params)
+func (ce *callEngine) callGoFunc(ctx context.Context, callCtx *wasm.CallContext, f *function, stack []uint64) {
+	lsn := f.parent.listener
+	if lsn != nil {
+		params := stack[:f.source.Type.ParamNumInUint64]
+		ctx = lsn.Before(ctx, f.source.Definition, params)
 	}
 	frame := &callFrame{f: f}
 	ce.pushFrame(frame)
-	results = wasm.CallGoFunc(ctx, callCtx, f.source, params)
-	ce.popFrame()
-	if f.source.Listener != nil {
-		// TODO: This doesn't get the error due to use of panic to propagate them.
-		f.source.Listener.After(ctx, f.source.Definition, nil, results)
+
+	fn := f.source.GoFunc
+	switch fn := fn.(type) {
+	case api.GoModuleFunction:
+		fn.Call(ctx, callCtx.WithMemory(ce.callerMemory()), stack)
+	case api.GoFunction:
+		fn.Call(ctx, stack)
 	}
-	return
+
+	ce.popFrame()
+	if lsn != nil {
+		// TODO: This doesn't get the error due to use of panic to propagate them.
+		results := stack[:f.source.Type.ResultNumInUint64]
+		lsn.After(ctx, f.source.Definition, nil, results)
+	}
 }
 
 func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallContext, f *function) {
@@ -4054,7 +4097,8 @@ func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallCont
 					math.Trunc(float64(math.Float32frombits(uint32(lo)))),
 					math.Trunc(float64(math.Float32frombits(uint32(lo >> 32)))),
 					math.Trunc(float64(math.Float32frombits(uint32(hi)))),
-					math.Trunc(float64(math.Float32frombits(uint32(hi >> 32))))} {
+					math.Trunc(float64(math.Float32frombits(uint32(hi >> 32)))),
+				} {
 
 					var v uint32
 					if math.IsNaN(f64) {
@@ -4346,9 +4390,25 @@ func (ce *callEngine) popMemoryOffset(op *interpreterOp) uint32 {
 }
 
 func (ce *callEngine) callGoFuncWithStack(ctx context.Context, callCtx *wasm.CallContext, f *function) {
-	params := wasm.PopGoFuncParams(f.source, ce.popValue)
-	results := ce.callGoFunc(ctx, callCtx, f, params)
-	for _, v := range results {
-		ce.pushValue(v)
+	paramLen := f.source.Type.ParamNumInUint64
+	resultLen := f.source.Type.ResultNumInUint64
+	stackLen := paramLen
+
+	// In the interpreter engine, ce.stack may only have capacity to store
+	// parameters. Grow when there are more results than parameters.
+	if growLen := resultLen - paramLen; growLen > 0 {
+		for i := 0; i < growLen; i++ {
+			ce.stack = append(ce.stack, 0)
+		}
+		stackLen += growLen
+	}
+
+	// Pass the stack elements to the go function.
+	stack := ce.stack[len(ce.stack)-stackLen:]
+	ce.callGoFunc(ctx, callCtx, f, stack)
+
+	// Shrink the stack when there were more parameters than results.
+	if shrinkLen := paramLen - resultLen; shrinkLen > 0 {
+		ce.stack = ce.stack[0 : len(ce.stack)-shrinkLen]
 	}
 }

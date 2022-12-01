@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"reflect"
 	"strings"
 
 	"github.com/tetratelabs/wazero/api"
@@ -209,7 +208,7 @@ type CompilationResult struct {
 
 	// GoFunc is the data returned by the same field documented on wasm.Code.
 	// In this case, IsHostFunction is true and other fields can be ignored.
-	GoFunc *reflect.Value
+	GoFunc interface{}
 
 	// Operations holds wazeroir operations compiled from Wasm instructions in a Wasm function.
 	Operations []Operation
@@ -218,7 +217,7 @@ type CompilationResult struct {
 	// Here "callers" means that the call-sites which jumps to the label with br, br_if or br_table
 	// instructions.
 	//
-	// Note: zero possible and allowed in wasm. Ex.
+	// Note: zero possible and allowed in wasm. e.g.
 	//
 	//	(block
 	//	  (br 0)
@@ -270,12 +269,14 @@ func CompileFunctions(_ context.Context, enabledFeatures api.CoreFeatures, callF
 		sig := module.TypeSection[typeID]
 		code := module.CodeSection[funcIndex]
 		if code.GoFunc != nil {
+			// Assume the function might use memory if it has a parameter for the api.Module
+			_, usesMemory := code.GoFunc.(api.GoModuleFunction)
+
 			ret = append(ret, &CompilationResult{
 				IsHostFunction: true,
-				// Assume the function might use memory if it has a parameter for the api.Module
-				UsesMemory: code.Kind == wasm.FunctionKindGoModule || code.Kind == wasm.FunctionKindGoContextModule,
-				GoFunc:     code.GoFunc,
-				Signature:  sig,
+				UsesMemory:     usesMemory,
+				GoFunc:         code.GoFunc,
+				Signature:      sig,
 			})
 
 			if len(sig.Params) > 0 && sig.ParamNumInUint64 == 0 {
@@ -648,7 +649,7 @@ operatorSwitch:
 		}
 
 	case wasm.OpcodeBr:
-		targetIndex, n, err := leb128.DecodeUint32(bytes.NewReader(c.body[c.pc+1:]))
+		targetIndex, n, err := leb128.LoadUint32(c.body[c.pc+1:])
 		if err != nil {
 			return fmt.Errorf("read the target for br_if: %w", err)
 		}
@@ -673,7 +674,7 @@ operatorSwitch:
 		// and can be safely removed.
 		c.markUnreachable()
 	case wasm.OpcodeBrIf:
-		targetIndex, n, err := leb128.DecodeUint32(bytes.NewReader(c.body[c.pc+1:]))
+		targetIndex, n, err := leb128.LoadUint32(c.body[c.pc+1:])
 		if err != nil {
 			return fmt.Errorf("read the target for br_if: %w", err)
 		}
@@ -789,7 +790,7 @@ operatorSwitch:
 		if index == nil {
 			return fmt.Errorf("index does not exist for indirect function call")
 		}
-		tableIndex, n, err := leb128.DecodeUint32(bytes.NewReader(c.body[c.pc+1:]))
+		tableIndex, n, err := leb128.LoadUint32(c.body[c.pc+1:])
 		if err != nil {
 			return fmt.Errorf("read target for br_table: %w", err)
 		}
@@ -1095,7 +1096,7 @@ operatorSwitch:
 			&OperationMemoryGrow{},
 		)
 	case wasm.OpcodeI32Const:
-		val, num, err := leb128.DecodeInt32(bytes.NewReader(c.body[c.pc+1:]))
+		val, num, err := leb128.LoadInt32(c.body[c.pc+1:])
 		if err != nil {
 			return fmt.Errorf("reading i32.const value: %v", err)
 		}
@@ -1104,7 +1105,7 @@ operatorSwitch:
 			&OperationConstI32{Value: uint32(val)},
 		)
 	case wasm.OpcodeI64Const:
-		val, num, err := leb128.DecodeInt64(bytes.NewReader(c.body[c.pc+1:]))
+		val, num, err := leb128.LoadInt64(c.body[c.pc+1:])
 		if err != nil {
 			return fmt.Errorf("reading i64.const value: %v", err)
 		}
@@ -1638,7 +1639,7 @@ operatorSwitch:
 		)
 	case wasm.OpcodeRefFunc:
 		c.pc++
-		index, num, err := leb128.DecodeUint32(bytes.NewReader(c.body[c.pc:]))
+		index, num, err := leb128.LoadUint32(c.body[c.pc:])
 		if err != nil {
 			return fmt.Errorf("failed to read function index for ref.func: %v", err)
 		}
@@ -1658,7 +1659,7 @@ operatorSwitch:
 		)
 	case wasm.OpcodeTableGet:
 		c.pc++
-		tableIndex, num, err := leb128.DecodeUint32(bytes.NewReader(c.body[c.pc:]))
+		tableIndex, num, err := leb128.LoadUint32(c.body[c.pc:])
 		if err != nil {
 			return fmt.Errorf("failed to read function index for table.get: %v", err)
 		}
@@ -1668,7 +1669,7 @@ operatorSwitch:
 		)
 	case wasm.OpcodeTableSet:
 		c.pc++
-		tableIndex, num, err := leb128.DecodeUint32(bytes.NewReader(c.body[c.pc:]))
+		tableIndex, num, err := leb128.LoadUint32(c.body[c.pc:])
 		if err != nil {
 			return fmt.Errorf("failed to read function index for table.set: %v", err)
 		}
@@ -1678,7 +1679,13 @@ operatorSwitch:
 		)
 	case wasm.OpcodeMiscPrefix:
 		c.pc++
-		switch miscOp := c.body[c.pc]; miscOp {
+		// A misc opcode is encoded as an unsigned variable 32-bit integer.
+		miscOp, num, err := leb128.LoadUint32(c.body[c.pc:])
+		if err != nil {
+			return fmt.Errorf("failed to read misc opcode: %v", err)
+		}
+		c.pc += num - 1
+		switch byte(miscOp) {
 		case wasm.OpcodeMiscI32TruncSatF32S:
 			c.emit(
 				&OperationITruncFromF{InputType: Float32, OutputType: SignedInt32, NonTrapping: true},
@@ -1713,7 +1720,7 @@ operatorSwitch:
 			)
 		case wasm.OpcodeMiscMemoryInit:
 			c.result.UsesMemory = true
-			dataIndex, num, err := leb128.DecodeUint32(bytes.NewReader(c.body[c.pc+1:]))
+			dataIndex, num, err := leb128.LoadUint32(c.body[c.pc+1:])
 			if err != nil {
 				return fmt.Errorf("reading i32.const value: %v", err)
 			}
@@ -1722,7 +1729,7 @@ operatorSwitch:
 				&OperationMemoryInit{DataIndex: dataIndex},
 			)
 		case wasm.OpcodeMiscDataDrop:
-			dataIndex, num, err := leb128.DecodeUint32(bytes.NewReader(c.body[c.pc+1:]))
+			dataIndex, num, err := leb128.LoadUint32(c.body[c.pc+1:])
 			if err != nil {
 				return fmt.Errorf("reading i32.const value: %v", err)
 			}
@@ -1743,13 +1750,13 @@ operatorSwitch:
 				&OperationMemoryFill{},
 			)
 		case wasm.OpcodeMiscTableInit:
-			elemIndex, num, err := leb128.DecodeUint32(bytes.NewReader(c.body[c.pc+1:]))
+			elemIndex, num, err := leb128.LoadUint32(c.body[c.pc+1:])
 			if err != nil {
 				return fmt.Errorf("reading i32.const value: %v", err)
 			}
 			c.pc += num
 			// Read table index which is fixed to zero currently.
-			tableIndex, num, err := leb128.DecodeUint32(bytes.NewReader(c.body[c.pc+1:]))
+			tableIndex, num, err := leb128.LoadUint32(c.body[c.pc+1:])
 			if err != nil {
 				return fmt.Errorf("reading i32.const value: %v", err)
 			}
@@ -1758,7 +1765,7 @@ operatorSwitch:
 				&OperationTableInit{ElemIndex: elemIndex, TableIndex: tableIndex},
 			)
 		case wasm.OpcodeMiscElemDrop:
-			elemIndex, num, err := leb128.DecodeUint32(bytes.NewReader(c.body[c.pc+1:]))
+			elemIndex, num, err := leb128.LoadUint32(c.body[c.pc+1:])
 			if err != nil {
 				return fmt.Errorf("reading i32.const value: %v", err)
 			}
@@ -1767,16 +1774,15 @@ operatorSwitch:
 				&OperationElemDrop{ElemIndex: elemIndex},
 			)
 		case wasm.OpcodeMiscTableCopy:
-			// Read the source table index.
-			dst, num, err := leb128.DecodeUint32(bytes.NewReader(c.body[c.pc+1:]))
+			// Read the source table inde.g.
+			dst, num, err := leb128.LoadUint32(c.body[c.pc+1:])
 			if err != nil {
 				return fmt.Errorf("reading i32.const value: %v", err)
 			}
 			c.pc += num
-			// Read the destination table index.
-			src, num, err := leb128.DecodeUint32(bytes.NewReader(c.body[c.pc+1:]))
+			// Read the destination table inde.g.
+			src, num, err := leb128.LoadUint32(c.body[c.pc+1:])
 			if err != nil {
-
 				return fmt.Errorf("reading i32.const value: %v", err)
 			}
 			c.pc += num
@@ -1784,8 +1790,8 @@ operatorSwitch:
 				&OperationTableCopy{SrcTableIndex: src, DstTableIndex: dst},
 			)
 		case wasm.OpcodeMiscTableGrow:
-			// Read the source table index.
-			tableIndex, num, err := leb128.DecodeUint32(bytes.NewReader(c.body[c.pc+1:]))
+			// Read the source table inde.g.
+			tableIndex, num, err := leb128.LoadUint32(c.body[c.pc+1:])
 			if err != nil {
 				return fmt.Errorf("reading i32.const value: %v", err)
 			}
@@ -1794,8 +1800,8 @@ operatorSwitch:
 				&OperationTableGrow{TableIndex: tableIndex},
 			)
 		case wasm.OpcodeMiscTableSize:
-			// Read the source table index.
-			tableIndex, num, err := leb128.DecodeUint32(bytes.NewReader(c.body[c.pc+1:]))
+			// Read the source table inde.g.
+			tableIndex, num, err := leb128.LoadUint32(c.body[c.pc+1:])
 			if err != nil {
 				return fmt.Errorf("reading i32.const value: %v", err)
 			}
@@ -1805,7 +1811,7 @@ operatorSwitch:
 			)
 		case wasm.OpcodeMiscTableFill:
 			// Read the source table index.
-			tableIndex, num, err := leb128.DecodeUint32(bytes.NewReader(c.body[c.pc+1:]))
+			tableIndex, num, err := leb128.LoadUint32(c.body[c.pc+1:])
 			if err != nil {
 				return fmt.Errorf("reading i32.const value: %v", err)
 			}
@@ -2935,7 +2941,7 @@ func (c *compiler) applyToStack(opcode wasm.Opcode) (*uint32, error) {
 		wasm.OpcodeGlobalGet,
 		wasm.OpcodeGlobalSet:
 		// Assumes that we are at the opcode now so skip it before read immediates.
-		v, num, err := leb128.DecodeUint32(bytes.NewReader(c.body[c.pc+1:]))
+		v, num, err := leb128.LoadUint32(c.body[c.pc+1:])
 		if err != nil {
 			return nil, fmt.Errorf("reading immediates: %w", err)
 		}
@@ -3116,13 +3122,12 @@ func (c *compiler) stackLenInUint64(ceil int) (ret int) {
 
 func (c *compiler) readMemoryArg(tag string) (*MemoryArg, error) {
 	c.result.UsesMemory = true
-	r := bytes.NewReader(c.body[c.pc+1:])
-	alignment, num, err := leb128.DecodeUint32(r)
+	alignment, num, err := leb128.LoadUint32(c.body[c.pc+1:])
 	if err != nil {
 		return nil, fmt.Errorf("reading alignment for %s: %w", tag, err)
 	}
 	c.pc += num
-	offset, num, err := leb128.DecodeUint32(r)
+	offset, num, err := leb128.LoadUint32(c.body[c.pc+1:])
 	if err != nil {
 		return nil, fmt.Errorf("reading offset for %s: %w", tag, err)
 	}

@@ -39,9 +39,26 @@ func (f *emptyFS) Open(name string) (fs.File, error) {
 
 // FileEntry maps a path to an open file in a file system.
 type FileEntry struct {
+	// Path was the argument to FSContext.OpenFile
 	Path string
+
 	// File when nil this is the root "/" (fd=3)
 	File fs.File
+
+	// ReadDir is present when this File is a fs.ReadDirFile and `ReadDir`
+	// was called.
+	ReadDir *ReadDir
+}
+
+// ReadDir is the status of a prior fs.ReadDirFile call.
+type ReadDir struct {
+	// CountRead is the total count of files read including Entries.
+	CountRead uint64
+
+	// Entries is the contents of the last fs.ReadDirFile call. Notably,
+	// directory listing are not rewindable, so we keep entries around in case
+	// the caller mis-estimated their buffer and needs a few still cached.
+	Entries []fs.DirEntry
 }
 
 type FSContext struct {
@@ -111,7 +128,7 @@ func (c *FSContext) OpenedFile(_ context.Context, fd uint32) (*FileEntry, bool) 
 // OpenFile is like syscall.Open and returns the file descriptor of the new file or an error.
 //
 // TODO: Consider dirflags and oflags. Also, allow non-read-only open based on config about the mount.
-// Ex. allow os.O_RDONLY, os.O_WRONLY, or os.O_RDWR either by config flag or pattern on filename
+// e.g. allow os.O_RDONLY, os.O_WRONLY, or os.O_RDWR either by config flag or pattern on filename
 // See #390
 func (c *FSContext) OpenFile(_ context.Context, name string /* TODO: flags int, perm int */) (uint32, error) {
 	// fs.ValidFile cannot be rooted (start with '/')
@@ -119,7 +136,7 @@ func (c *FSContext) OpenFile(_ context.Context, name string /* TODO: flags int, 
 	if name[0] == '/' {
 		fsOpenPath = name[1:]
 	}
-	fsOpenPath = path.Clean(fsOpenPath) // ex. "sub/." -> "sub"
+	fsOpenPath = path.Clean(fsOpenPath) // e.g. "sub/." -> "sub"
 
 	f, err := c.fs.Open(fsOpenPath)
 	if err != nil {
@@ -127,7 +144,7 @@ func (c *FSContext) OpenFile(_ context.Context, name string /* TODO: flags int, 
 	}
 
 	newFD := c.nextFD()
-	if newFD == 0 {
+	if newFD == 0 { // TODO: out of file descriptors
 		_ = f.Close()
 		return 0, syscall.EBADF
 	}
@@ -153,7 +170,7 @@ func (c *FSContext) CloseFile(_ context.Context, fd uint32) bool {
 }
 
 // Close implements io.Closer
-func (c *FSContext) Close(_ context.Context) (err error) {
+func (c *FSContext) Close(context.Context) (err error) {
 	// Close any files opened in this context
 	for fd, entry := range c.openedFiles {
 		delete(c.openedFiles, fd)

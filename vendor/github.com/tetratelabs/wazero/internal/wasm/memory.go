@@ -59,7 +59,7 @@ func (m *MemoryInstance) Definition() api.MemoryDefinition {
 }
 
 // Size implements the same method as documented on api.Memory.
-func (m *MemoryInstance) Size(_ context.Context) uint32 {
+func (m *MemoryInstance) Size(context.Context) uint32 {
 	return m.size()
 }
 
@@ -162,6 +162,15 @@ func (m *MemoryInstance) Write(_ context.Context, offset uint32, val []byte) boo
 	return true
 }
 
+// WriteString implements the same method as documented on api.Memory.
+func (m *MemoryInstance) WriteString(_ context.Context, offset uint32, val string) bool {
+	if !m.hasSize(offset, uint32(len(val))) {
+		return false
+	}
+	copy(m.Buffer[offset:], val)
+	return true
+}
+
 // MemoryPagesToBytesNum converts the given pages into the number of bytes contained in these pages.
 func MemoryPagesToBytesNum(pages uint32) (bytesNum uint64) {
 	return uint64(pages) << MemoryPageSizeInBits
@@ -194,11 +203,11 @@ func (m *MemoryInstance) Grow(_ context.Context, delta uint32) (result uint32, o
 }
 
 // PageSize returns the current memory buffer size in pages.
-func (m *MemoryInstance) PageSize(_ context.Context) (result uint32) {
+func (m *MemoryInstance) PageSize(context.Context) (result uint32) {
 	return memoryBytesNumToPages(uint64(len(m.Buffer)))
 }
 
-// PagesToUnitOfBytes converts the pages to a human-readable form similar to what's specified. Ex. 1 -> "64Ki"
+// PagesToUnitOfBytes converts the pages to a human-readable form similar to what's specified. e.g. 1 -> "64Ki"
 //
 // See https://www.w3.org/TR/2019/REC-wasm-core-1-20191205/#memory-instances%E2%91%A0
 func PagesToUnitOfBytes(pages uint32) string {

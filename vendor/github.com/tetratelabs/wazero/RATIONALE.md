@@ -46,6 +46,7 @@ x/sys as a platform plugin without forcing all users to maintain that
 dependency.
 
 ## Project structure
+
 wazero uses internal packages extensively to balance API compatability desires for end users with the need to safely
 share internals between compilers.
 
@@ -57,6 +58,7 @@ notably the name of the folder becomes the binary name. We chose to use `cmd/waz
 and less surprising than `wazero/wazero`.
 
 ### Internal packages
+
 Most code in wazero is internal, and it is acknowledged that this prevents external implementation of facets such as
 compilers or decoding. It also prevents splitting this code into separate repositories, resulting in a larger monorepo.
 This also adds work as more code needs to be centrally reviewed.
@@ -78,10 +80,11 @@ realities are friendly OSS licensing, high rigor and a collaborative spirit whic
 codebase productive.
 
 ### Avoiding cyclic dependencies
+
 wazero shares constants and interfaces with internal code by a sharing pattern described below:
 * shared interfaces and constants go in one package under root: `api`.
 * user APIs and structs depend on `api` and go into the root package `wazero`.
-  * Ex. `InstantiateModule` -> `/wasm.go` depends on the type `api.Module`.
+  * e.g. `InstantiateModule` -> `/wasm.go` depends on the type `api.Module`.
 * implementation code can also depend on `api` in a corresponding package under `/internal`.
   * Ex  package `wasm` -> `/internal/wasm/*.go` and can depend on the type `api.Module`.
 
@@ -106,10 +109,84 @@ field.
 
 In practice, this means shared functionality like memory mutation need to be implemented by interfaces.
 
-Ex. `api.Memory` protects access by exposing functions like `WriteFloat64Le` instead of exporting a buffer (`[]byte`).
-Ex. There is no exported symbol for the `[]byte` representing the `CodeSection`
+Here are some examples:
+* `api.Memory` protects access by exposing functions like `WriteFloat64Le` instead of exporting a buffer (`[]byte`).
+* There is no exported symbol for the `[]byte` representing the `CodeSection`
 
 Besides security, this practice prevents other bugs and allows centralization of validation logic such as decoding Wasm.
+
+## API Design
+
+### Why does `api.ValueType` map to uint64?
+
+WebAssembly allows functions to be defined either by the guest or the host,
+with signatures expressed as WebAssembly types. For example, `i32` is a 32-bit
+type which might be interpreted as signed. Function signatures can have zero or
+more parameters or results even if WebAssembly 1.0 allows up to one result.
+
+The guest can export functions, so that the host can call it. In the case of
+wazero, the host is Go and an exported function can be called via
+`api.Function`. `api.Function` allows users to supply parameters and read
+results as a slice of uint64. For example, if there are no results, an empty
+slice is returned. The user can learn the signature via `FunctionDescription`,
+which returns the `api.ValueType` corresponding to each parameter or result.
+`api.ValueType` defines the mapping of WebAssembly types to `uint64` values for
+reason described in this section. The special case of `v128` is also mentioned
+below.
+
+wazero maps each value type to a uint64 values because it holds the largest
+type in WebAssembly 1.0 (i64). A slice allows you to express empty (e.g. a
+nullary signature), for example a start function.
+
+Here's an example of calling a function, noting this syntax works for both a
+signature `(param i32 i32) (result i32)` and `(param i64 i64) (result i64)`
+```go
+x, y := uint64(1), uint64(2)
+results, err := mod.ExportedFunction("add").Call(ctx, x, y)
+if err != nil {
+	log.Panicln(err)
+}
+fmt.Printf("%d + %d = %d\n", x, y, results[0])
+```
+
+WebAssembly does not define an encoding strategy for host defined parameters or
+results. This means the encoding rules above are defined by wazero instead. To
+address this, we clarified mapping both in `api.ValueType` and added helper
+functions like `api.EncodeF64`. This allows users conversions typical in Go
+programming, and utilities to avoid ambiguity and edge cases around casting.
+
+Alternatively, we could have defined a byte buffer based approach and a binary
+encoding of value types in and out. For example, an empty byte slice would mean
+no values, while a non-empty could use a binary encoding for supported values.
+This could work, but it is more difficult for the normal case of i32 and i64.
+It also shares a struggle with the current approach, which is that value types
+were added after WebAssembly 1.0 and not all of them have an encoding. More on
+this below.
+
+In summary, wazero chose an approach for signature mapping because there was
+none, and the one we chose biases towards simplicity with integers and handles
+the rest with documentation and utilities.
+
+#### Post 1.0 value types
+
+Value types added after WebAssembly 1.0 stressed the current model, as some
+have no encoding or are larger than 64 bits. While problematic, these value
+types are not commonly used in exported (extern) functions. However, some
+decisions were made and detailed below.
+
+For example `externref` has no guest representation. wazero chose to map
+references to uint64 as that's the largest value needed to encode a pointer on
+supported platforms. While there are two reference types, `externref` and
+`functype`, the latter is an internal detail of function tables, and the former
+is rarely if ever used in function signatures as of the end of 2022.
+
+The only value larger than 64 bits is used for SIMD (`v128`). Vectorizing via
+host functions is not used as of the end of 2022. Even if it were, it would be
+inefficient vs guest vectorization due to host function overhead. In other
+words, the `v128` value type is unlikely to be in an exported function
+signature. That it requires two uint64 values to encode is an internal detail
+and not worth changing the exported function interface `api.Function`, as doing
+so would break all users.
 
 ### Interfaces, not structs
 
@@ -117,7 +194,7 @@ All exported types in public packages, regardless of configuration vs runtime, a
 internal flexibility and avoiding people accidentally mis-initializing by instantiating the types on their own vs using
 the `NewXxx` constructor functions. In other words, there's less support load when things can't be done incorrectly.
 
-Ex.
+Here's an example:
 ```go
 rt := &RuntimeConfig{} // not initialized properly (fields are nil which shouldn't be)
 rt := RuntimeConfig{} // not initialized properly (should be a pointer)
@@ -131,9 +208,9 @@ There are a few drawbacks to this, notably some work for maintainers.
 
 ## Config
 
-wazero configures scopes such as Runtime and Module using `XxxConfig` types. Ex. `RuntimeConfig` configures `Runtime`
-and `ModuleConfig` configures `Module` (instantiation). In all cases, config types begin defaults and can be customized
-by a user, for example, selecting features or a module name override.
+wazero configures scopes such as Runtime and Module using `XxxConfig` types. For example, `RuntimeConfig` configures
+`Runtime` and `ModuleConfig` configure `Module` (instantiation). In all cases, config types begin defaults and can be
+customized by a user, e.g., selecting features or a module name override.
 
 ### Why don't we make each configuration setting return an error?
 No config types create resources that would need to be closed, nor do they return errors on use. This helps reduce
@@ -177,13 +254,13 @@ any goroutine.
 
 Since config are immutable, changes apply via return val, similar to `append` in a slice.
 
-Ex. Both of these are the same sort of error:
+For example, both of these are the same sort of error:
 ```go
 append(slice, element) // bug as only the return value has the updated slice.
 cfg.WithName(next) // bug as only the return value has the updated name.
 ```
 
-This means the correct use is re-assigning explicitly or via chaining. Ex.
+Here's an example of correct use: re-assigning explicitly or via chaining.
 ```go
 cfg = cfg.WithName(name) // explicit
 
@@ -279,9 +356,9 @@ space. It is accepted that the options pattern is common in Go, which is the mai
 ### Why aren't config types deeply structured?
 wazero's configuration types cover the three main scopes of WebAssembly use:
 * `RuntimeConfig`: This is the broadest scope, so applies also to compilation
-  and instantiation. Ex. This controls the WebAssembly Specification Version.
+  and instantiation. e.g. This controls the WebAssembly Specification Version.
 * `ModuleConfig`: This affects modules instantiated after compilation and what
-  resources are allowed. Ex. This defines how or if STDOUT is captured.
+  resources are allowed. e.g. This defines how or if STDOUT is captured.
 
 We could nest configuration, for example have `ModuleConfig.SysConfig` instead
 of a flat definition. However, a flat structure is easier to work with and is
@@ -319,7 +396,7 @@ there to be an engine that has multiple stores which have multiple modules. More
 either 1 engine with 1 store and multiple modules, or 1 engine with many stores, each having 1 non-host module. In worst
 case, a user can use multiple runtimes until "multi-store" is better understood.
 
-If later, we have demand for multiple stores, that can be accomplished by overload. Ex. `Runtime.InstantiateInStore` or
+If later, we have demand for multiple stores, that can be accomplished by overload. e.g. `Runtime.InstantiateInStore` or
 `Runtime.Store(name) Store`.
 
 ## wazeroir
@@ -402,6 +479,7 @@ one spec to another with minimal impact. This has other helpful benefits, as cen
 coherently (ex via `Module.Close`).
 
 ### Background on `ModuleConfig` design
+
 WebAssembly 1.0 (20191205) specifies some aspects to control isolation between modules ([sandboxing](https://en.wikipedia.org/wiki/Sandbox_(computer_security))).
 For example, `wasm.Memory` has size constraints and each instance of it is isolated from each other. While `wasm.Memory`
 can be shared, by exporting it, it is not exported by default. In fact a WebAssembly Module (Wasm) has no memory by
@@ -620,6 +698,7 @@ easy and efficient closure over a common program function. We also documented
 `sys.Nanotime` to warn users that some compilers don't optimize sleep.
 
 ## Signed encoding of integer global constant initializers
+
 wazero treats integer global constant initializers signed as their interpretation is not known at declaration time. For
 example, there is no signed integer [value type](https://www.w3.org/TR/2019/REC-wasm-core-1-20191205/#value-types%E2%91%A0).
 

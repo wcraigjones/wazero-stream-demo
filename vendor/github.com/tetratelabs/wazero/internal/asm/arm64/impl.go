@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"math"
 
 	"github.com/tetratelabs/wazero/internal/asm"
 )
@@ -556,7 +555,8 @@ func (a *AssemblerImpl) CompileConditionalRegisterSet(cond asm.ConditionalRegist
 
 // CompileMemoryToVectorRegister implements Assembler.CompileMemoryToVectorRegister
 func (a *AssemblerImpl) CompileMemoryToVectorRegister(
-	instruction asm.Instruction, srcBaseReg asm.Register, dstOffset asm.ConstantValue, dstReg asm.Register, arrangement VectorArrangement) {
+	instruction asm.Instruction, srcBaseReg asm.Register, dstOffset asm.ConstantValue, dstReg asm.Register, arrangement VectorArrangement,
+) {
 	n := a.newNode(instruction, operandTypesMemoryToVectorRegister)
 	n.srcReg = srcBaseReg
 	n.srcConst = dstOffset
@@ -566,7 +566,8 @@ func (a *AssemblerImpl) CompileMemoryToVectorRegister(
 
 // CompileMemoryWithRegisterOffsetToVectorRegister implements Assembler.CompileMemoryWithRegisterOffsetToVectorRegister
 func (a *AssemblerImpl) CompileMemoryWithRegisterOffsetToVectorRegister(instruction asm.Instruction,
-	srcBaseReg, srcOffsetRegister asm.Register, dstReg asm.Register, arrangement VectorArrangement) {
+	srcBaseReg, srcOffsetRegister asm.Register, dstReg asm.Register, arrangement VectorArrangement,
+) {
 	n := a.newNode(instruction, operandTypesMemoryToVectorRegister)
 	n.srcReg = srcBaseReg
 	n.srcReg2 = srcOffsetRegister
@@ -576,7 +577,8 @@ func (a *AssemblerImpl) CompileMemoryWithRegisterOffsetToVectorRegister(instruct
 
 // CompileVectorRegisterToMemory implements Assembler.CompileVectorRegisterToMemory
 func (a *AssemblerImpl) CompileVectorRegisterToMemory(
-	instruction asm.Instruction, srcReg, dstBaseReg asm.Register, dstOffset asm.ConstantValue, arrangement VectorArrangement) {
+	instruction asm.Instruction, srcReg, dstBaseReg asm.Register, dstOffset asm.ConstantValue, arrangement VectorArrangement,
+) {
 	n := a.newNode(instruction, operandTypesVectorRegisterToMemory)
 	n.srcReg = srcReg
 	n.dstReg = dstBaseReg
@@ -586,7 +588,8 @@ func (a *AssemblerImpl) CompileVectorRegisterToMemory(
 
 // CompileVectorRegisterToMemoryWithRegisterOffset implements Assembler.CompileVectorRegisterToMemoryWithRegisterOffset
 func (a *AssemblerImpl) CompileVectorRegisterToMemoryWithRegisterOffset(instruction asm.Instruction,
-	srcReg, dstBaseReg, dstOffsetRegister asm.Register, arrangement VectorArrangement) {
+	srcReg, dstBaseReg, dstOffsetRegister asm.Register, arrangement VectorArrangement,
+) {
 	n := a.newNode(instruction, operandTypesVectorRegisterToMemory)
 	n.srcReg = srcReg
 	n.dstReg = dstBaseReg
@@ -596,7 +599,8 @@ func (a *AssemblerImpl) CompileVectorRegisterToMemoryWithRegisterOffset(instruct
 
 // CompileRegisterToVectorRegister implements Assembler.CompileRegisterToVectorRegister
 func (a *AssemblerImpl) CompileRegisterToVectorRegister(
-	instruction asm.Instruction, srcReg, dstReg asm.Register, arrangement VectorArrangement, index VectorIndex) {
+	instruction asm.Instruction, srcReg, dstReg asm.Register, arrangement VectorArrangement, index VectorIndex,
+) {
 	n := a.newNode(instruction, operandTypesRegisterToVectorRegister)
 	n.srcReg = srcReg
 	n.dstReg = dstReg
@@ -606,7 +610,8 @@ func (a *AssemblerImpl) CompileRegisterToVectorRegister(
 
 // CompileVectorRegisterToRegister implements Assembler.CompileVectorRegisterToRegister
 func (a *AssemblerImpl) CompileVectorRegisterToRegister(instruction asm.Instruction, srcReg, dstReg asm.Register,
-	arrangement VectorArrangement, index VectorIndex) {
+	arrangement VectorArrangement, index VectorIndex,
+) {
 	n := a.newNode(instruction, operandTypesVectorRegisterToRegister)
 	n.srcReg = srcReg
 	n.dstReg = dstReg
@@ -616,7 +621,8 @@ func (a *AssemblerImpl) CompileVectorRegisterToRegister(instruction asm.Instruct
 
 // CompileVectorRegisterToVectorRegister implements Assembler.CompileVectorRegisterToVectorRegister
 func (a *AssemblerImpl) CompileVectorRegisterToVectorRegister(
-	instruction asm.Instruction, srcReg, dstReg asm.Register, arrangement VectorArrangement, srcIndex, dstIndex VectorIndex) {
+	instruction asm.Instruction, srcReg, dstReg asm.Register, arrangement VectorArrangement, srcIndex, dstIndex VectorIndex,
+) {
 	n := a.newNode(instruction, operandTypesVectorRegisterToVectorRegister)
 	n.srcReg = srcReg
 	n.dstReg = dstReg
@@ -627,7 +633,8 @@ func (a *AssemblerImpl) CompileVectorRegisterToVectorRegister(
 
 // CompileVectorRegisterToVectorRegisterWithConst implements Assembler.CompileVectorRegisterToVectorRegisterWithConst
 func (a *AssemblerImpl) CompileVectorRegisterToVectorRegisterWithConst(instruction asm.Instruction,
-	srcReg, dstReg asm.Register, arrangement VectorArrangement, c asm.ConstantValue) {
+	srcReg, dstReg asm.Register, arrangement VectorArrangement, c asm.ConstantValue,
+) {
 	n := a.newNode(instruction, operandTypesVectorRegisterToVectorRegister)
 	n.srcReg = srcReg
 	n.srcConst = c
@@ -644,7 +651,8 @@ func (a *AssemblerImpl) CompileStaticConstToRegister(instruction asm.Instruction
 
 // CompileStaticConstToVectorRegister implements Assembler.CompileStaticConstToVectorRegister
 func (a *AssemblerImpl) CompileStaticConstToVectorRegister(instruction asm.Instruction,
-	c *asm.StaticConst, dstReg asm.Register, arrangement VectorArrangement) {
+	c *asm.StaticConst, dstReg asm.Register, arrangement VectorArrangement,
+) {
 	n := a.newNode(instruction, operandTypesStaticConstToVectorRegister)
 	n.staticConst = c
 	n.dstReg = dstReg
@@ -653,7 +661,8 @@ func (a *AssemblerImpl) CompileStaticConstToVectorRegister(instruction asm.Instr
 
 // CompileTwoVectorRegistersToVectorRegister implements Assembler.CompileTwoVectorRegistersToVectorRegister.
 func (a *AssemblerImpl) CompileTwoVectorRegistersToVectorRegister(instruction asm.Instruction, srcReg, srcReg2, dstReg asm.Register,
-	arrangement VectorArrangement) {
+	arrangement VectorArrangement,
+) {
 	n := a.newNode(instruction, operandTypesTwoVectorRegistersToVectorRegister)
 	n.srcReg = srcReg
 	n.srcReg2 = srcReg2
@@ -663,7 +672,8 @@ func (a *AssemblerImpl) CompileTwoVectorRegistersToVectorRegister(instruction as
 
 // CompileTwoVectorRegistersToVectorRegisterWithConst implements Assembler.CompileTwoVectorRegistersToVectorRegisterWithConst.
 func (a *AssemblerImpl) CompileTwoVectorRegistersToVectorRegisterWithConst(instruction asm.Instruction,
-	srcReg, srcReg2, dstReg asm.Register, arrangement VectorArrangement, c asm.ConstantValue) {
+	srcReg, srcReg2, dstReg asm.Register, arrangement VectorArrangement, c asm.ConstantValue,
+) {
 	n := a.newNode(instruction, operandTypesTwoVectorRegistersToVectorRegister)
 	n.srcReg = srcReg
 	n.srcReg2 = srcReg2
@@ -1594,7 +1604,8 @@ func fitInSigned9Bits(v int64) bool {
 }
 
 func (a *AssemblerImpl) encodeLoadOrStoreWithRegisterOffset(
-	baseRegBits, offsetRegBits, targetRegBits byte, opcode, size, v byte) {
+	baseRegBits, offsetRegBits, targetRegBits byte, opcode, size, v byte,
+) {
 	// See "Load/store register (register offset)".
 	// https://developer.arm.com/documentation/ddi0596/2021-12/Index-by-Encoding/Loads-and-Stores?lang=en#ldst_regoff
 	a.Buf.Write([]byte{
@@ -1670,7 +1681,7 @@ func (a *AssemblerImpl) encodeLoadOrStoreWithConstOffset(
 	// Go's assembler adds a const into the const pool at this point,
 	// regardless of its usage; e.g. if we enter the then block of the following if statement,
 	// the const is not used but it is added into the const pool.
-	var c = asm.NewStaticConst(make([]byte, 4))
+	c := asm.NewStaticConst(make([]byte, 4))
 	binary.LittleEndian.PutUint32(c.Raw, uint32(offset))
 	a.pool.AddConst(c, uint64(a.Buf.Len()))
 
@@ -1823,25 +1834,23 @@ func (a *AssemblerImpl) encodeADR(n *nodeImpl) (err error) {
 		}
 
 		offset := targetNode.OffsetInBinary() - n.OffsetInBinary()
-		if offset > math.MaxUint8 {
-			// We could support up to 20-bit integer, but byte should be enough for our impl.
-			// If the necessity comes up, we could fix the below to support larger offsets.
-			return fmt.Errorf("BUG: too large offset for ADR")
+		if i64 := int64(offset); i64 >= 1<<20 || i64 < -1<<20 {
+			// We could support offset over 20-bit range by special casing them here,
+			// but 20-bit range should be enough for our impl. If the necessity comes up,
+			// we could add the special casing here to support arbitrary large offset.
+			return fmt.Errorf("BUG: too large offset for ADR: %#x", offset)
 		}
 
-		// Now ready to write an offset byte.
-		v := byte(offset)
-
 		adrInstructionBytes := code[n.OffsetInBinary() : n.OffsetInBinary()+4]
-		// According to the binary format of ADR instruction in arm64:
+		// According to the binary format of ADR instruction:
 		// https://developer.arm.com/documentation/ddi0596/2021-12/Base-Instructions/ADR--Form-PC-relative-address-?lang=en
-		//
-		// The 0 to 1 bits live on 29 to 30 bits of the instruction.
-		adrInstructionBytes[3] |= (v & 0b00000011) << 5
-		// The 2 to 4 bits live on 5 to 7 bits of the instruction.
-		adrInstructionBytes[0] |= (v & 0b00011100) << 3
-		// The 5 to 7 bits live on 8 to 10 bits of the instruction.
-		adrInstructionBytes[1] |= (v & 0b11100000) >> 5
+		adrInstructionBytes[3] |= byte(offset & 0b00000011 << 5)
+		offset >>= 2
+		adrInstructionBytes[0] |= byte(offset << 5)
+		offset >>= 3
+		adrInstructionBytes[1] |= byte(offset)
+		offset >>= 8
+		adrInstructionBytes[2] |= byte(offset)
 		return nil
 	})
 	return
@@ -2116,7 +2125,7 @@ func (a *AssemblerImpl) encodeConstToRegister(n *nodeImpl) (err error) {
 		if t := const16bitAligned(c); t >= 0 {
 			// If the const can fit within 16-bit alignment, for example, 0xffff, 0xffff_0000 or 0xffff_0000_0000_0000
 			// We could load it into temporary with movk.
-			//https://github.com/golang/go/blob/release-branch.go1.15/src/cmd/internal/obj/arm64/asm7.go#L4029
+			// https://github.com/golang/go/blob/release-branch.go1.15/src/cmd/internal/obj/arm64/asm7.go#L4029
 			tmpRegBits := registerBits(a.temporaryRegister)
 
 			// MOVZ $c, tmpReg with shifting.
@@ -2344,7 +2353,6 @@ func (a *AssemblerImpl) load64bitConst(c int64, dstRegBits byte) {
 				a.movz(v, i, dstRegBits)
 			}
 		}
-
 	} else if negs == 3 {
 		// one MOVN instruction.
 		for i, v := range bits {
@@ -2353,7 +2361,6 @@ func (a *AssemblerImpl) load64bitConst(c int64, dstRegBits byte) {
 				a.movn(v, i, dstRegBits)
 			}
 		}
-
 	} else if zeros == 2 {
 		// one MOVZ then one OVK.
 		var movz bool
@@ -2483,7 +2490,7 @@ func (a *AssemblerImpl) loadConstViaBitMaskImmediate(c uint64, regBits byte, dst
 	// See the following article for understanding the encoding.
 	// https://dinfuehr.github.io/blog/encoding-of-immediate-values-on-aarch64/
 	var n byte
-	var mode = 32
+	mode := 32
 	if dst64bit && size == 64 {
 		n = 0b1
 		mode = 64
@@ -2755,14 +2762,16 @@ var advancedSIMDTwoRegisterMisc = map[asm.Instruction]struct {
 	qAndSize  map[VectorArrangement]qAndSize
 }{
 	// https://developer.arm.com/documentation/ddi0596/2021-12/SIMD-FP-Instructions/NOT--Bitwise-NOT--vector--?lang=en
-	NOT: {u: 0b1, opcode: 0b00101,
+	NOT: {
+		u: 0b1, opcode: 0b00101,
 		qAndSize: map[VectorArrangement]qAndSize{
 			VectorArrangement16B: {size: 0b00, q: 0b1},
 			VectorArrangement8B:  {size: 0b00, q: 0b0},
 		},
 	},
 	// https://developer.arm.com/documentation/ddi0596/2021-12/SIMD-FP-Instructions/FNEG--vector---Floating-point-Negate--vector--?lang=en
-	VFNEG: {u: 0b1, opcode: 0b01111,
+	VFNEG: {
+		u: 0b1, opcode: 0b01111,
 		qAndSize: map[VectorArrangement]qAndSize{
 			VectorArrangement4S: {size: 0b10, q: 0b1},
 			VectorArrangement2S: {size: 0b10, q: 0b0},
@@ -2941,62 +2950,71 @@ var advancedSIMDThreeSame = map[asm.Instruction]struct {
 	qAndSize  map[VectorArrangement]qAndSize
 }{
 	// https://developer.arm.com/documentation/ddi0596/2021-12/SIMD-FP-Instructions/AND--vector---Bitwise-AND--vector--?lang=en
-	VAND: {u: 0b0, opcode: 0b00011,
+	VAND: {
+		u: 0b0, opcode: 0b00011,
 		qAndSize: map[VectorArrangement]qAndSize{
 			VectorArrangement16B: {size: 0b00, q: 0b1},
 			VectorArrangement8B:  {size: 0b00, q: 0b0},
 		},
 	},
 	// https://developer.arm.com/documentation/ddi0596/2021-12/SIMD-FP-Instructions/BSL--Bitwise-Select-?lang=en
-	BSL: {u: 0b1, opcode: 0b00011,
+	BSL: {
+		u: 0b1, opcode: 0b00011,
 		qAndSize: map[VectorArrangement]qAndSize{
 			VectorArrangement16B: {size: 0b01, q: 0b1},
 			VectorArrangement8B:  {size: 0b01, q: 0b0},
 		},
 	},
 	// https://developer.arm.com/documentation/ddi0596/2021-12/SIMD-FP-Instructions/EOR--vector---Bitwise-Exclusive-OR--vector--?lang=en
-	EOR: {u: 0b1, opcode: 0b00011,
+	EOR: {
+		u: 0b1, opcode: 0b00011,
 		qAndSize: map[VectorArrangement]qAndSize{
 			VectorArrangement16B: {size: 0b00, q: 0b1},
 			VectorArrangement8B:  {size: 0b00, q: 0b0},
 		},
 	},
 	// https://developer.arm.com/documentation/ddi0596/2021-12/SIMD-FP-Instructions/ORR--vector--register---Bitwise-inclusive-OR--vector--register--?lang=en
-	VORR: {u: 0b0, opcode: 0b00011,
+	VORR: {
+		u: 0b0, opcode: 0b00011,
 		qAndSize: map[VectorArrangement]qAndSize{
 			VectorArrangement16B: {size: 0b10, q: 0b1},
 			VectorArrangement8B:  {size: 0b10, q: 0b0},
 		},
 	},
 	// https://developer.arm.com/documentation/ddi0596/2021-12/SIMD-FP-Instructions/BIC--vector--register---Bitwise-bit-Clear--vector--register--?lang=en
-	BIC: {u: 0b0, opcode: 0b00011,
+	BIC: {
+		u: 0b0, opcode: 0b00011,
 		qAndSize: map[VectorArrangement]qAndSize{
 			VectorArrangement16B: {size: 0b01, q: 0b1},
 			VectorArrangement8B:  {size: 0b01, q: 0b0},
 		},
 	},
 	// https://developer.arm.com/documentation/ddi0596/2021-12/SIMD-FP-Instructions/FADD--vector---Floating-point-Add--vector--?lang=en
-	VFADDS: {u: 0b0, opcode: 0b11010,
+	VFADDS: {
+		u: 0b0, opcode: 0b11010,
 		qAndSize: map[VectorArrangement]qAndSize{
 			VectorArrangement4S: {size: 0b00, q: 0b1},
 			VectorArrangement2S: {size: 0b00, q: 0b0},
 		},
 	},
 	// https://developer.arm.com/documentation/ddi0596/2021-12/SIMD-FP-Instructions/FADD--vector---Floating-point-Add--vector--?lang=en
-	VFADDD: {u: 0b0, opcode: 0b11010,
+	VFADDD: {
+		u: 0b0, opcode: 0b11010,
 		qAndSize: map[VectorArrangement]qAndSize{
 			VectorArrangement2D: {size: 0b01, q: 0b1},
 		},
 	},
 	// https://developer.arm.com/documentation/ddi0596/2021-12/SIMD-FP-Instructions/FSUB--vector---Floating-point-Subtract--vector--?lang=en
-	VFSUBS: {u: 0b0, opcode: 0b11010,
+	VFSUBS: {
+		u: 0b0, opcode: 0b11010,
 		qAndSize: map[VectorArrangement]qAndSize{
 			VectorArrangement4S: {size: 0b10, q: 0b1},
 			VectorArrangement2S: {size: 0b10, q: 0b0},
 		},
 	},
 	// https://developer.arm.com/documentation/ddi0596/2021-12/SIMD-FP-Instructions/FSUB--vector---Floating-point-Subtract--vector--?lang=en
-	VFSUBD: {u: 0b0, opcode: 0b11010,
+	VFSUBD: {
+		u: 0b0, opcode: 0b11010,
 		qAndSize: map[VectorArrangement]qAndSize{
 			VectorArrangement2D: {size: 0b11, q: 0b1},
 		},
@@ -3024,7 +3042,8 @@ var advancedSIMDThreeSame = map[asm.Instruction]struct {
 	// https://developer.arm.com/documentation/ddi0596/2021-12/SIMD-FP-Instructions/CMHS--register---Compare-unsigned-Higher-or-Same--vector--?lang=en
 	CMHS: {u: 0b1, opcode: 0b00111, qAndSize: defaultQAndSize},
 	// https://developer.arm.com/documentation/ddi0596/2021-12/SIMD-FP-Instructions/FCMEQ--register---Floating-point-Compare-Equal--vector--?lang=en
-	FCMEQ: {u: 0b0, opcode: 0b11100,
+	FCMEQ: {
+		u: 0b0, opcode: 0b11100,
 		qAndSize: map[VectorArrangement]qAndSize{
 			VectorArrangement4S: {size: 0b00, q: 0b1},
 			VectorArrangement2S: {size: 0b00, q: 0b0},
@@ -3032,7 +3051,8 @@ var advancedSIMDThreeSame = map[asm.Instruction]struct {
 		},
 	},
 	// https://developer.arm.com/documentation/ddi0596/2021-12/SIMD-FP-Instructions/FCMGT--register---Floating-point-Compare-Greater-than--vector--?lang=en
-	FCMGT: {u: 0b1, opcode: 0b11100,
+	FCMGT: {
+		u: 0b1, opcode: 0b11100,
 		qAndSize: map[VectorArrangement]qAndSize{
 			VectorArrangement4S: {size: 0b10, q: 0b1},
 			VectorArrangement2S: {size: 0b10, q: 0b0},
@@ -3040,7 +3060,8 @@ var advancedSIMDThreeSame = map[asm.Instruction]struct {
 		},
 	},
 	// https://developer.arm.com/documentation/ddi0596/2021-12/SIMD-FP-Instructions/FCMGE--register---Floating-point-Compare-Greater-than-or-Equal--vector--?lang=en
-	FCMGE: {u: 0b1, opcode: 0b11100,
+	FCMGE: {
+		u: 0b1, opcode: 0b11100,
 		qAndSize: map[VectorArrangement]qAndSize{
 			VectorArrangement4S: {size: 0b00, q: 0b1},
 			VectorArrangement2S: {size: 0b00, q: 0b0},
@@ -3048,7 +3069,8 @@ var advancedSIMDThreeSame = map[asm.Instruction]struct {
 		},
 	},
 	// https://developer.arm.com/documentation/ddi0596/2021-12/SIMD-FP-Instructions/FMIN--vector---Floating-point-minimum--vector--?lang=en
-	VFMIN: {u: 0b0, opcode: 0b11110,
+	VFMIN: {
+		u: 0b0, opcode: 0b11110,
 		qAndSize: map[VectorArrangement]qAndSize{
 			VectorArrangement4S: {size: 0b10, q: 0b1},
 			VectorArrangement2S: {size: 0b10, q: 0b0},
@@ -3056,7 +3078,8 @@ var advancedSIMDThreeSame = map[asm.Instruction]struct {
 		},
 	},
 	// https://developer.arm.com/documentation/ddi0596/2021-12/SIMD-FP-Instructions/FMAX--vector---Floating-point-Maximum--vector--?lang=en
-	VFMAX: {u: 0b0, opcode: 0b11110,
+	VFMAX: {
+		u: 0b0, opcode: 0b11110,
 		qAndSize: map[VectorArrangement]qAndSize{
 			VectorArrangement4S: {size: 0b00, q: 0b1},
 			VectorArrangement2S: {size: 0b00, q: 0b0},
@@ -3064,7 +3087,8 @@ var advancedSIMDThreeSame = map[asm.Instruction]struct {
 		},
 	},
 	// https://developer.arm.com/documentation/ddi0596/2021-12/SIMD-FP-Instructions/FMUL--vector---Floating-point-Multiply--vector--?lang=en
-	VFMUL: {u: 0b1, opcode: 0b11011,
+	VFMUL: {
+		u: 0b1, opcode: 0b11011,
 		qAndSize: map[VectorArrangement]qAndSize{
 			VectorArrangement4S: {size: 0b00, q: 0b1},
 			VectorArrangement2S: {size: 0b00, q: 0b0},
@@ -3072,7 +3096,8 @@ var advancedSIMDThreeSame = map[asm.Instruction]struct {
 		},
 	},
 	// https://developer.arm.com/documentation/ddi0596/2021-12/SIMD-FP-Instructions/FDIV--vector---Floating-point-Divide--vector--?lang=en
-	VFDIV: {u: 0b1, opcode: 0b11111,
+	VFDIV: {
+		u: 0b1, opcode: 0b11111,
 		qAndSize: map[VectorArrangement]qAndSize{
 			VectorArrangement4S: {size: 0b00, q: 0b1},
 			VectorArrangement2S: {size: 0b00, q: 0b0},
@@ -3134,7 +3159,8 @@ var advancedSIMDAcrossLanes = map[asm.Instruction]struct {
 	qAndSize  map[VectorArrangement]qAndSize
 }{
 	// https://developer.arm.com/documentation/ddi0596/2021-12/SIMD-FP-Instructions/ADDV--Add-across-Vector-?lang=en
-	ADDV: {u: 0b0, opcode: 0b11011,
+	ADDV: {
+		u: 0b0, opcode: 0b11011,
 		qAndSize: map[VectorArrangement]qAndSize{
 			VectorArrangement16B: {size: 0b00, q: 0b1},
 			VectorArrangement8B:  {size: 0b00, q: 0b0},
@@ -3144,7 +3170,8 @@ var advancedSIMDAcrossLanes = map[asm.Instruction]struct {
 		},
 	},
 	// https://developer.arm.com/documentation/ddi0596/2021-12/SIMD-FP-Instructions/UMINV--Unsigned-Minimum-across-Vector-?lang=en
-	UMINV: {u: 0b1, opcode: 0b11010,
+	UMINV: {
+		u: 0b1, opcode: 0b11010,
 		qAndSize: map[VectorArrangement]qAndSize{
 			VectorArrangement16B: {size: 0b00, q: 0b1},
 			VectorArrangement8B:  {size: 0b00, q: 0b0},
@@ -3333,27 +3360,32 @@ var advancedSIMDShiftByImmediate = map[asm.Instruction]struct {
 	immResolver func(shiftAmount int64, arr VectorArrangement) (immh, immb byte, err error)
 }{
 	// https://developer.arm.com/documentation/ddi0596/2020-12/SIMD-FP-Instructions/SSHLL--SSHLL2--Signed-Shift-Left-Long--immediate--
-	SSHLL: {U: 0b0, opcode: 0b10100,
+	SSHLL: {
+		U: 0b0, opcode: 0b10100,
 		q:           map[VectorArrangement]byte{VectorArrangement8B: 0b0, VectorArrangement4H: 0b0, VectorArrangement2S: 0b0},
 		immResolver: immResolverForSIMDSiftLeftByImmediate,
 	},
 	// https://developer.arm.com/documentation/ddi0596/2020-12/SIMD-FP-Instructions/SSHLL--SSHLL2--Signed-Shift-Left-Long--immediate--
-	SSHLL2: {U: 0b0, opcode: 0b10100,
+	SSHLL2: {
+		U: 0b0, opcode: 0b10100,
 		q:           map[VectorArrangement]byte{VectorArrangement16B: 0b1, VectorArrangement8H: 0b1, VectorArrangement4S: 0b1},
 		immResolver: immResolverForSIMDSiftLeftByImmediate,
 	},
 	// https://developer.arm.com/documentation/ddi0596/2020-12/SIMD-FP-Instructions/USHLL--USHLL2--Unsigned-Shift-Left-Long--immediate--
-	USHLL: {U: 0b1, opcode: 0b10100,
+	USHLL: {
+		U: 0b1, opcode: 0b10100,
 		q:           map[VectorArrangement]byte{VectorArrangement8B: 0b0, VectorArrangement4H: 0b0, VectorArrangement2S: 0b0},
 		immResolver: immResolverForSIMDSiftLeftByImmediate,
 	},
 	// https://developer.arm.com/documentation/ddi0596/2020-12/SIMD-FP-Instructions/USHLL--USHLL2--Unsigned-Shift-Left-Long--immediate--
-	USHLL2: {U: 0b1, opcode: 0b10100,
+	USHLL2: {
+		U: 0b1, opcode: 0b10100,
 		q:           map[VectorArrangement]byte{VectorArrangement16B: 0b1, VectorArrangement8H: 0b1, VectorArrangement4S: 0b1},
 		immResolver: immResolverForSIMDSiftLeftByImmediate,
 	},
 	// https://developer.arm.com/documentation/ddi0596/2021-12/SIMD-FP-Instructions/SSHR--Signed-Shift-Right--immediate--?lang=en
-	SSHR: {U: 0b0, opcode: 0b00000,
+	SSHR: {
+		U: 0b0, opcode: 0b00000,
 		q: map[VectorArrangement]byte{
 			VectorArrangement16B: 0b1, VectorArrangement8H: 0b1, VectorArrangement4S: 0b1, VectorArrangement2D: 0b1,
 			VectorArrangement8B: 0b0, VectorArrangement4H: 0b0, VectorArrangement2S: 0b0,

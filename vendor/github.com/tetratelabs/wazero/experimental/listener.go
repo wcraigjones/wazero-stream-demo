@@ -8,8 +8,6 @@ import (
 
 // FunctionListenerFactoryKey is a context.Context Value key. Its associated value should be a FunctionListenerFactory.
 //
-// Note: This is interpreter-only for now!
-//
 // See https://github.com/tetratelabs/wazero/issues/451
 type FunctionListenerFactoryKey struct{}
 
@@ -53,6 +51,6 @@ type FunctionListener interface {
 // TODO: Errors aren't handled, and the After hook should accept one along with the result values.
 
 // TODO: The context parameter of the After hook is not the same as the Before hook. This means interceptor patterns
-// are awkward. Ex. something like timing is difficult as it requires propagating a stack. Otherwise, nested calls will
+// are awkward. e.g. something like timing is difficult as it requires propagating a stack. Otherwise, nested calls will
 // overwrite each other's "since" time. Propagating a stack is further awkward as the After hook needs to know the
 // position to read from which might be subtle.
